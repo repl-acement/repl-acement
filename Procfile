@@ -1,0 +1,1 @@
+web: clojure -A:clj:server

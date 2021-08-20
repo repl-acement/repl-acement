@@ -1,0 +1,48 @@
+name: CI-Test
+
+on:
+  # Trigger the workflow on pull request or push,
+  # but only for the master branch
+  push:
+    branches:
+      - master
+  pull_request:
+
+jobs:
+  test:
+    name: Unit Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Install clojure tools
+        uses: DeLaGuardo/setup-clojure@3.4
+        with:
+          cli: 1.10.1.693 # Clojure CLI based on tools.deps
+          
+      - name: Cache maven
+        uses: actions/cache@v1
+        env:
+          cache-name: cache-maven
+        with:
+          path: ~/.m2
+          key: ${{ runner.os }}-build-${{ env.cache-name }}-${{ hashFiles('**/deps.edn') }}
+          restore-keys: |
+            ${{ runner.os }}-build-${{ env.cache-name }}-
+            ${{ runner.os }}-build-
+            ${{ runner.os }}-
+
+      - name: Cache gitlibs
+        uses: actions/cache@v1
+        env:
+          cache-name: cache-gitlibs
+        with:
+          path: ~/.gitlibs
+          key: ${{ runner.os }}-build-${{ env.cache-name }}-${{ hashFiles('**/deps.edn') }}
+          restore-keys: |
+            ${{ runner.os }}-build-${{ env.cache-name }}-
+            ${{ runner.os }}-build-
+            ${{ runner.os }}-
+
+      - name: Run CLJ Tests
+        run: clojure -M:clj:server-test

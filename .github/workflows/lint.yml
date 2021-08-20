@@ -1,0 +1,15 @@
+name: CI-Lint
+
+on: [push]
+
+jobs:
+  clj-kondo:
+
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v2
+      - uses: DeLaGuardo/clojure-lint-action@master
+        with:
+          clj-kondo-args: --lint repl-server
+          github_token: ${{ secrets.GITHUB_TOKEN }}
