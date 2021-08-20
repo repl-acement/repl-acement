@@ -5,9 +5,9 @@
 A Clojure server exposing a shared PREPL, accessible via a web socket.
 
 It exposes:
-- PREPL output
-- keystrokes
-- `clj-kondo` analysis data
+- [X] PREPL output
+- [X] keystrokes
+- [ ] `clj-kondo` analysis data
 
 ## Usage
 
