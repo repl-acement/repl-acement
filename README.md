@@ -1,3 +1,5 @@
+[![CI-Lint](https://github.com/repl-acement/repl-acement/actions/workflows/lint.yml/badge.svg)](https://github.com/repl-acement/repl-acement/actions/workflows/lint.yml) [![CI-Test](https://github.com/repl-acement/repl-acement/actions/workflows/ci.yml/badge.svg)](https://github.com/repl-acement/repl-acement/actions/workflows/ci.yml)
+
 # REPL-acement
 
 A Clojure server exposing a shared PREPL, accessible via a web socket.
