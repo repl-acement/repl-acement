@@ -5,8 +5,8 @@
 A Clojure server exposing a shared PREPL, accessible via a web socket.
 
 It exposes:
-- [X] PREPL output
-- [X] keystrokes
+- [X] JVM PREPL output
+- [X] keystrokes as input per user
 - [ ] `clj-kondo` analysis data
 
 ## Usage
@@ -33,7 +33,6 @@ In all cases, a PREPL socket server will be started locally.
  
 ## Planned features
 
-- [ ] JVM PREPL
 - [ ] nodeJS PREPL
 
 ## Planned examples 
