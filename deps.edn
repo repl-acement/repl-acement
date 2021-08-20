@@ -8,7 +8,7 @@
   org.slf4j/slf4j-simple      {:mvn/version "1.7.30"}}
 
  :aliases
- {:clj         {:extra-paths ["repl-server" "repl-specs" "resources" "classes"]
+ {:clj         {:extra-paths ["repl-server" "repl-specs" "resources"]
                 :extra-deps  {hiccup/hiccup               {:mvn/version "1.0.5"}
                               http-kit/http-kit           {:mvn/version "2.5.3"}
                               clj-deps/clj-deps           {:mvn/version "0.4.10"}
