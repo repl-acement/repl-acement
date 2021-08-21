@@ -1,10 +1,10 @@
-(ns repl.repl.http
+(ns replacement.server.http
   (:require
     [clojure.core.async :as async :refer [chan]]
     [org.httpkit.server :as http-kit]
-    [repl.repl.async-prepl :as socket-prepl]
-    [repl.repl.user :as user-specs]
-    [repl.repl.web :as web]
+    [replacement.server.async-prepl :as socket-prepl]
+    [replacement.specs.user :as user-specs]
+    [replacement.server.web :as web]
     [taoensso.sente :as sente]
     [taoensso.timbre :refer [debugf infof]])
   (:import (clojure.lang DynamicClassLoader)

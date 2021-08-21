@@ -1,4 +1,4 @@
-(ns repl.repl.async-prepl
+(ns replacement.server.async-prepl
   (:require
     [clojure.core.async :as a]
     [clojure.core.server :refer [start-server]])

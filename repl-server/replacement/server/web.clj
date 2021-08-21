@@ -1,4 +1,4 @@
-(ns repl.repl.web
+(ns replacement.server.web
   (:require [compojure.core :refer [defroutes GET POST]]
             [compojure.route :as route]
             [hiccup.page :as page]
@@ -54,7 +54,7 @@
      (page/include-js "/js/compiled/app.js")]
     [:body
      [:div#app]
-     [:script "repl.repl.core.init();"]]))
+     [:script "replacement.ui.core.init();"]]))
 
 (defroutes ring-routes
            (GET "/" ring-req (landing-pg-handler ring-req))

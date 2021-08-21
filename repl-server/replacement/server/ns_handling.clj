@@ -1,4 +1,4 @@
-(ns repl.repl.ns-handling
+(ns replacement.server.ns-handling
   (:require [clojure.tools.namespace.parse :as parse]))
 
 (defn get-deps [form]

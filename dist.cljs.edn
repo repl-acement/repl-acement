@@ -1,4 +1,4 @@
-{:main            repl.repl.core
+{:main            replacement.ui.core
  :output-to       "resources/public/js/compiled/app.js"
  :output-dir      "resources/public/js/compiled/out"
  :asset-path      "js/compiled/out"

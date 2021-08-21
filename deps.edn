@@ -31,7 +31,7 @@
 
   :server      {:extra-paths ["repl-server" "resources"]
                 :jvm-opts    ["-Dclojure.main.report=stderr"]
-                :main-opts   ["-m" "repl.repl.http"]}
+                :main-opts   ["-m" "replacement.server.http"]}
 
   :server-repl {:extra-paths ["repl-server" "resources"]
                 :main-opts   ["-r"]}
