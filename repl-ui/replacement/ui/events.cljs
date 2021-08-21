@@ -42,7 +42,7 @@
 (reg-event-db
   ::initialize-db
   (fn [_ _]
-    (merge {::name             "repl-repl"
+    (merge {::name             "replacement"
             ::other-visibility true}
            os-data)))
 
@@ -169,7 +169,7 @@
   (fn [[source user form]]
     (when-not (string/blank? form)
       (ws/chsk-send!
-        [:repl-repl/eval {:form      form
+        [:replacement/eval {:form      form
                           :team-name "team-name"
                           :source    source
                           :user      user
@@ -197,7 +197,7 @@
     (let [user (user-specs/->user (::user-specs/name options)
                                   (::user-specs/uid options))]
       (ws/chsk-send!
-        [:repl-repl/login user]
+        [:replacement/login user]
         (or timeout default-server-timeout)
         (fn [reply]
           (if (and (sente/cb-success? reply)
@@ -217,7 +217,7 @@
 (reg-fx
   ::>logout
   (fn [{:keys [options timeout]}]
-    (ws/chsk-send! [:repl-repl/logout options]
+    (ws/chsk-send! [:replacement/logout options]
                    (or timeout default-server-timeout))))
 
 (reg-event-fx
@@ -255,7 +255,7 @@
   (fn [[user user-count patch]]
     (when (> user-count 1)
       (ws/chsk-send!
-        [:repl-repl/keystrokes (message-specs/->keystrokes patch user)]))))
+        [:replacement/keystrokes (message-specs/->keystrokes patch user)]))))
 
 (defn- form-differ
   [current-form previous-form]

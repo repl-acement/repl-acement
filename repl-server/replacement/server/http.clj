@@ -56,7 +56,7 @@
   [out-ch]
   (async/go-loop []
                  (let [prepl-map (async/<! out-ch)]
-                   (>send [:repl-repl/eval prepl-map])
+                   (>send [:replacement/eval prepl-map])
                    (recur))))
 
 (def prepl-chan (chan))
@@ -66,15 +66,15 @@
 ;; REPL
 
 ;; Send keystrokes around the team
-(defmethod ^:private -event-msg-handler :repl-repl/keystrokes
+(defmethod ^:private -event-msg-handler :replacement/keystrokes
   [{:keys [?data]}]
-  (>send [:repl-repl/keystrokes ?data]))
+  (>send [:replacement/keystrokes ?data]))
 
-(defmethod ^:private -event-msg-handler :repl-repl/eval
+(defmethod ^:private -event-msg-handler :replacement/eval
   [{:keys [?data]}]
   (socket-prepl/shared-eval @prepl-opts ?data))
 
-(defmethod ^:private -event-msg-handler :repl-repl/cancel
+(defmethod ^:private -event-msg-handler :replacement/cancel
   [_]
   (socket-prepl/cancel @prepl-opts))
 
@@ -85,11 +85,11 @@
 
 (defn- register-user [login-user]
   (swap! connected-users #(user-specs/+user % login-user))
-  (>send [:repl-repl/users @connected-users]))
+  (>send [:replacement/users @connected-users]))
 
 (defn- deregister-user [user]
   (swap! connected-users #(user-specs/<-user (::user-specs/name user) %))
-  (>send [:repl-repl/users @connected-users]))
+  (>send [:replacement/users @connected-users]))
 
 ; the dropping thing needs to be re-thought, maybe via core.async timeouts
 (defn- register-socket-ping [state client-id]
@@ -120,16 +120,16 @@
     (?reply-fn :login-ok)
     (?reply-fn :login-failed)))
 
-(defmethod ^:private -event-msg-handler :repl-repl/login
+(defmethod ^:private -event-msg-handler :replacement/login
   [ev-msg]
   (login ev-msg))
 
-(defmethod ^:private -event-msg-handler :repl-repl/logout
+(defmethod ^:private -event-msg-handler :replacement/logout
   [ev-msg]
   (logout ev-msg))
 
 ;; TODO drop the team name messages (that's for the team node)
-(defmethod ^:private -event-msg-handler :repl-repl/team-random-data
+(defmethod ^:private -event-msg-handler :replacement/team-random-data
   [{:keys [?reply-fn]}]
   (println :team-random-data)
   (?reply-fn {:team-name "apropos" :team-secret @shared-secret}))

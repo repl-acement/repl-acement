@@ -38,13 +38,13 @@
   (let [push-event (first ?data)
         push-data  (first (rest ?data))]
     (cond
-      (= push-event :repl-repl/keystrokes)
+      (= push-event :replacement/keystrokes)
       (re-frame/dispatch [:replacement.ui.events/other-user-keystrokes push-data])
 
-      (= push-event :repl-repl/users)
+      (= push-event :replacement/users)
       (re-frame/dispatch [:replacement.ui.events/users push-data])
 
-      (= push-event :repl-repl/eval)
+      (= push-event :replacement/eval)
       (re-frame/dispatch [:replacement.ui.events/eval-result push-data])
 
       (= push-event :chsk/ws-ping)
