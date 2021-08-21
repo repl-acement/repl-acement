@@ -1,7 +1,8 @@
 (ns replacement.server.async-prepl
   (:require
     [clojure.core.async :as a]
-    [clojure.core.server :refer [start-server]])
+    [clojure.core.server :refer [start-server]]
+    [clj-kondo.core :as clj-kondo])
   (:import (java.io StringReader OutputStreamWriter BufferedReader InputStreamReader)
            (clojure.lang LineNumberingPushbackReader DynamicClassLoader)
            (org.apache.commons.codec.binary Hex)
@@ -55,6 +56,18 @@
   [ex phase]
   (assoc (Throwable->map ex) :phase phase))
 
+(defn analyse [form]
+  (-> form
+      (with-in-str (clj-kondo/run! {:lint ["-"] :config {:output {:analysis true}}}))
+      :analysis))
+
+(defn send-analysis* [out-ch forms]
+  (a/put! out-ch {:analysis/form forms
+                  :analysis/data (analyse forms)}))
+
+(defn send-analysis [out-ch forms]
+  (future (send-analysis* out-ch forms)))
+
 (defn- shared-eval*
   "Evaluate the form(s) provided in the string `form` using the given `writer`"
   [{:keys [opts client]} {:keys [form user] :as message-data}]
@@ -66,19 +79,20 @@
             default-data {:ns "user", :ms 0 :tag :ret :val "nil" :user user :input form}]
         (if-not (seq forms)
           (a/put! out-ch (merge message-data default-data))
-          (let [_sent   (doall (map (partial write-form writer) forms))
-                EOF     (Object.)
-                read-fn #(with-read-known (read reader false EOF))]
-            (loop [output-map    (read-fn)
-                   ret-tag-count 0]
-              (let [out-map       (assoc output-map :user user :input form)
-                    ret-tag-count (if (= :ret (:tag output-map))
-                                    (inc ret-tag-count)
-                                    ret-tag-count)]
-                (a/put! out-ch out-map)
-                (when-not (= form-count ret-tag-count)
-                  (recur (read-fn)
-                         ret-tag-count)))))))
+          (do (send-analysis out-ch form)
+              (let [_sent   (doall (map (partial write-form writer) forms))
+                    EOF     (Object.)
+                    read-fn #(with-read-known (read reader false EOF))]
+                (loop [output-map    (read-fn)
+                       ret-tag-count 0]
+                  (let [out-map       (assoc output-map :user user :input form)
+                        ret-tag-count (if (= :ret (:tag output-map))
+                                        (inc ret-tag-count)
+                                        ret-tag-count)]
+                    (a/put! out-ch out-map)
+                    (when-not (= form-count ret-tag-count)
+                      (recur (read-fn)
+                             ret-tag-count))))))))
       (catch Throwable ex
         (a/put! out-ch (assoc message-data
                          :exception true :ns "user" :user user

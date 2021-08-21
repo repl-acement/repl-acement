@@ -133,6 +133,7 @@
 (reg-event-fx
   ::eval-result
   (fn [{:keys [db]} [_ {:keys [form val] :as eval-result}]]
+    (prn :eval-result eval-result)
     (if (= form "*clojure-version*")
       {:db (assoc db :clojure-version val)}
       (let [code-mirror  (:eval-code-mirror db)

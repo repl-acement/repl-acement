@@ -9,12 +9,13 @@
 
  :aliases
  {:clj         {:extra-paths ["repl-server" "repl-specs" "resources"]
-                :extra-deps  {hiccup/hiccup               {:mvn/version "1.0.5"}
-                              http-kit/http-kit           {:mvn/version "2.5.3"}
-                              clj-deps/clj-deps           {:mvn/version "0.4.10"}
+                :extra-deps  {clj-deps/clj-deps           {:mvn/version "0.4.10"}
+                              clj-kondo/clj-kondo         {:mvn/version "RELEASE"}
                               com.cognitect/transit-clj   {:mvn/version "1.0.324"}
                               commons-codec/commons-codec {:mvn/version "1.15"}
                               compojure/compojure         {:mvn/version "1.6.2"}
+                              hiccup/hiccup               {:mvn/version "1.0.5"}
+                              http-kit/http-kit           {:mvn/version "2.5.3"}
                               ring/ring                   {:mvn/version "1.9.3"}
                               ring/ring-defaults          {:mvn/version "0.3.2"}}}
 
