@@ -8,7 +8,18 @@
   org.slf4j/slf4j-simple      {:mvn/version "1.7.30"}}
 
  :aliases
- {:clj         {:extra-paths ["repl-server" "repl-specs" "resources"]
+ {:dev         {:extra-paths ["test"]
+                :extra-deps  {applied-science/js-interop {:mvn/version "0.2.5"}
+                              thheller/shadow-cljs       {:mvn/version "2.14.4"}}}
+
+  :demo        {:extra-deps  {nextjournal/clojure-mode   {:git/url "https://github.com/nextjournal/clojure-mode"
+                                                          :sha     "a83c87cd2bd2049b70613f360336a096d15c5518"}
+                              applied-science/js-interop {:mvn/version "0.2.5"}
+                              com.cognitect/transit-cljs {:mvn/version "0.8.264"}
+                              re-frame/re-frame          {:mvn/version "1.2.0"}}
+                :extra-paths ["demo/src" "resources" "repl-specs"]}
+
+  :clj         {:extra-paths ["repl-server" "repl-specs" "resources"]
                 :extra-deps  {clj-deps/clj-deps           {:mvn/version "0.4.10"}
                               clj-kondo/clj-kondo         {:mvn/version "RELEASE"}
                               com.cognitect/transit-clj   {:mvn/version "1.0.324"}
@@ -38,13 +49,12 @@
                 :main-opts   ["-r"]}
 
   :cljs        {:extra-paths ["repl-ui" "repl-specs" "resources"]
-                :extra-deps  {org.clojure/clojurescript      {:mvn/version "1.10.844"}
-                              com.cognitect/transit-cljs     {:mvn/version "0.8.264"}
-                              re-frame/re-frame              {:mvn/version "1.2.0"}
-                              re-com/re-com                  {:mvn/version "2.13.2"}
-                              cljsjs/codemirror              {:mvn/version "5.44.0-1"}
-                              cljsjs/parinfer-codemirror     {:mvn/version "1.4.1-2"}
-                              cljsjs/google-diff-match-patch {:mvn/version "62f2e689f498f9c92dbc588c58750addec9b1654-0"}}}
+                :extra-deps  {org.clojure/clojurescript  {:mvn/version "1.10.844"}
+                              com.cognitect/transit-cljs {:mvn/version "0.8.264"}
+                              re-frame/re-frame          {:mvn/version "1.2.0"}
+                              re-com/re-com              {:mvn/version "2.13.2"}
+                              cljsjs/codemirror          {:mvn/version "5.44.0-1"}
+                              cljsjs/parinfer-codemirror {:mvn/version "1.4.1-2"}}}
 
   :figwheel    {:jvm-opts   ["-Dclojure.main.report=stderr"]
                 :extra-deps {com.bhauman/figwheel-main       {:mvn/version "0.2.13"}

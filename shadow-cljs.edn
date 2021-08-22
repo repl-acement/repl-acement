@@ -1,0 +1,18 @@
+{:deps {:aliases [:dev :demo]}
+ :dev-http {8002 "public"
+            8001 "public/test"}
+ :nrepl {:port 9000}
+ :builds {:demo {:compiler-options {:output-feature-set :es8}
+                 :target :browser
+                 :output-dir "public/js"
+                 :asset-path "js"
+                 :modules {:main {:init-fn nextjournal.clojure-mode.demo/render}}}
+          :test {:compiler-options {:output-feature-set :es8}
+                 :target :browser-test
+                 :test-dir "public/test"
+                 :ns-regexp "-tests$"
+                 ;; sometimes I get weird $jscomp.inherits errors, which can be fixed
+                 ;; by temporarily uncommenting the following forms in each build.
+                 #_#_:js-options
+                 {:resolve {"lezer-clojure" {:target :npm
+                                             :require "lezer-clojure/dist/index.cjs"}}}}}}

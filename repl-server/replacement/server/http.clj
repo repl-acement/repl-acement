@@ -42,7 +42,6 @@
 (defn >send
   "Send `msg` to each member"
   [msg]
-  (prn :send msg)
   (let [uids (user-specs/get-uids @connected-users)]
     (doall (map #(web/chsk-send! % msg) uids))))
 
