@@ -38,12 +38,10 @@
 
 
 ;; KEYSTROKES
-
-;; Communicated via a patch
-(spec/def ::patch any?)
+(spec/def ::form string?)
 
 (spec/def ::keystrokes
-  (spec/keys :req [::patch ::user/user]))
+  (spec/keys :req [::form ::user/user]))
 
 ;; REPL EVALUATION
 
@@ -80,12 +78,12 @@
 
 (defn ->keystrokes
   "Create a map for sharing new keystrokes"
-  [patch user]
-  {::patch     patch
+  [form user]
+  {::form      form
    ::user/user user})
 
 (spec/fdef ->keystrokes
-           :args (spec/cat :patch ::patch
+           :args (spec/cat :form ::form
                            :user ::user/user)
            :ret ::keystrokes)
 

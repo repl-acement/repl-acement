@@ -171,10 +171,10 @@
     (when-not (string/blank? form)
       (ws/chsk-send!
         [:replacement/eval {:form      form
-                          :team-name "team-name"
-                          :source    source
-                          :user      user
-                          :forms     form}]
+                            :team-name "team-name"
+                            :source    source
+                            :user      user
+                            :forms     form}]
         (or (:timeout form) default-server-timeout))
       (when-not (= system-user user)
         (re-frame/dispatch [::input-history form])))))
@@ -233,6 +233,12 @@
   (fn [db [_ show?]]
     (assoc db :show-add-lib-panel show?)))
 
+(reg-event-db
+  ::analysis
+  (fn [db [_ analysis]]
+    (prn :analysis analysis)
+    (assoc db :analysis analysis)))
+
 (reg-event-fx
   ::add-lib
   (fn [cofx [_ {:keys [name version url sha maven] :as lib}]]
@@ -253,29 +259,17 @@
 ;; Share editing updates
 (reg-fx
   ::>current-form
-  (fn [[user user-count patch]]
-    (when (> user-count 1)
-      (ws/chsk-send!
-        [:replacement/keystrokes (message-specs/->keystrokes patch user)]))))
-
-(defn- form-differ
-  [current-form previous-form]
-  (let [differ (js/diff_match_patch.)]
-    (->> current-form
-         (.diff_main differ previous-form)
-         (.patch_make differ)
-         (.patch_toText differ))))
+  (fn [[form user]]
+    (ws/chsk-send!
+      [:replacement/keystrokes (message-specs/->keystrokes form user)])))
 
 (reg-event-fx
   ::current-form
   (fn [{:keys [db]} [_ current-form]]
     (when-not (string/blank? (string/trim current-form))
-      (let [prev-form  (or (:current-form db) "")
-            user       (::user-specs/user db)
-            user-count (count (::user-specs/users db))
-            diff       (form-differ current-form prev-form)]
+      (let [user (::user-specs/user db)]
         {:db             (assoc db :current-form current-form)
-         ::>current-form [user user-count diff]}))))
+         ::>current-form [current-form user]}))))
 
 ;; ------------------------------------------------------------------
 
@@ -337,13 +331,13 @@
 (reg-event-fx
   ::other-user-keystrokes
   (fn [{:keys [db]} [_ {:keys [::user-specs/user
-                               ::message-specs/patch]}]]
+                               ::message-specs/form]}]]
     (when-not (= user (::user-specs/user db))
       (let [editor-key   (keyword (::user-specs/name user))
             code-mirrors (:other-user-code-mirrors db)
             code-mirror  (get code-mirrors editor-key)]
-        {:db                          db
-         ::code-mirror/patch-cm-value {:code-mirror code-mirror
-                                       :patch       patch}}))))
+        {:db                        db
+         ::code-mirror/set-cm-value {:code-mirror code-mirror
+                                     :value       form}}))))
 
 

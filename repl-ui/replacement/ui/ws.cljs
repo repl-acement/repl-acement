@@ -33,6 +33,8 @@
     (re-frame/dispatch [:replacement.ui.events/client-uid (:uid new-state-map)])
     (re-frame/dispatch [:replacement.ui.events/network-status (:open? new-state-map)])))
 
+(println :new-ws-loaded)
+
 (defmethod -event-msg-handler :chsk/recv
   [{:keys [?data]}]
   (let [push-event (first ?data)
@@ -46,6 +48,9 @@
 
       (= push-event :replacement/eval)
       (re-frame/dispatch [:replacement.ui.events/eval-result push-data])
+
+      (= push-event :replacement/analysis)
+      (re-frame/dispatch [:replacement.ui.events/analysis push-data])
 
       (= push-event :chsk/ws-ping)
       :noop                                                 ; do reply

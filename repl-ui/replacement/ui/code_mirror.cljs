@@ -27,15 +27,6 @@
 (reg-fx
   ::set-cm-value
   (fn [{:keys [code-mirror value]}]
-    (.setValue code-mirror value)))
-
-(reg-fx
-  ::patch-cm-value
-  (fn [{:keys [code-mirror patch]}]
-    (let [value   (.getValue code-mirror)
-          differ  (js/diff_match_patch.)
-          js-patch (.patch_fromText differ patch)
-          [new-val patched?] (.patch_apply differ js-patch value)]
-      (when patched?
-        (.setValue code-mirror new-val)))))
+    (when (and code-mirror value)
+      (.setValue code-mirror value))))
 

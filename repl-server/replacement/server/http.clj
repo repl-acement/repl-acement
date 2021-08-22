@@ -2,6 +2,7 @@
   (:require
     [clojure.core.async :as async :refer [chan]]
     [org.httpkit.server :as http-kit]
+    [replacement.server.analysis :as analysis]
     [replacement.server.async-prepl :as socket-prepl]
     [replacement.specs.user :as user-specs]
     [replacement.server.web :as web]
@@ -41,6 +42,7 @@
 (defn >send
   "Send `msg` to each member"
   [msg]
+  (prn :send msg)
   (let [uids (user-specs/get-uids @connected-users)]
     (doall (map #(web/chsk-send! % msg) uids))))
 
@@ -55,12 +57,12 @@
 (defn forward-results
   [out-ch]
   (async/go-loop []
-                 (let [prepl-map (async/<! out-ch)]
-                   (>send [:replacement/eval prepl-map])
-                   (recur))))
+    (let [prepl-map (async/<! out-ch)]
+      (>send [:replacement/eval prepl-map])
+      (recur))))
 
 (def prepl-chan (chan))
-(def ^:private prepl-opts (atom (socket-prepl/init-prepl {:out-ch  prepl-chan})))
+(def ^:private prepl-opts (atom (socket-prepl/init-prepl {:out-ch prepl-chan})))
 (def _forwarding (forward-results prepl-chan))
 
 ;; REPL
@@ -68,7 +70,8 @@
 ;; Send keystrokes around the team
 (defmethod ^:private -event-msg-handler :replacement/keystrokes
   [{:keys [?data]}]
-  (>send [:replacement/keystrokes ?data]))
+  (>send [:replacement/keystrokes ?data])
+  (>send [:replacement/analysis (analysis/clj-kondo ?data)]))
 
 (defmethod ^:private -event-msg-handler :replacement/eval
   [{:keys [?data]}]
@@ -152,11 +155,11 @@
 (defn- stop-web-server! [] (when-let [stop-fn @web-server_] (stop-fn)))
 (defn start-web-server! [& [port]]
   (stop-web-server!)
-  (let [port (or port 0)                                    ; 0 => Choose any available port
+  (let [port         (or port 0)                            ; 0 => Choose any available port
         ring-handler (var web/main-ring-handler)
         [port stop-fn] (let [stop-fn (http-kit/run-server ring-handler {:port port})]
                          [(:local-port (meta stop-fn)) (fn [] (stop-fn :timeout 100))])
-        uri (format "http://localhost:%s/" port)]
+        uri          (format "http://localhost:%s/" port)]
 
     (infof "Web server is running at `%s`" uri)
     (try
