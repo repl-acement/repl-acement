@@ -27,7 +27,7 @@
         "w3c-keyname": "^2.2.4"
     },
     "scripts": {
-        "watch": "shadow-cljs -A:demo watch demo test",
+        "watch": "shadow-cljs -A:demo watch demo",
         "build": "shadow-cljs -A:demo release demo"
     }
 }

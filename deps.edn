@@ -12,12 +12,14 @@
                 :extra-deps  {applied-science/js-interop {:mvn/version "0.2.5"}
                               thheller/shadow-cljs       {:mvn/version "2.14.4"}}}
 
-  :demo        {:extra-deps  {nextjournal/clojure-mode   {:git/url "https://github.com/nextjournal/clojure-mode"
+  :demo        {:extra-paths ["repl-ui" "resources" "repl-specs"]
+                :extra-deps  {org.clojure/clojurescript  {:mvn/version "1.10.866"}
+                              nextjournal/clojure-mode   {:git/url "https://github.com/nextjournal/clojure-mode"
                                                           :sha     "a83c87cd2bd2049b70613f360336a096d15c5518"}
                               applied-science/js-interop {:mvn/version "0.2.5"}
                               com.cognitect/transit-cljs {:mvn/version "0.8.264"}
-                              re-frame/re-frame          {:mvn/version "1.2.0"}}
-                :extra-paths ["demo/src" "resources" "repl-specs"]}
+                              re-frame/re-frame          {:mvn/version "1.2.0"}
+                              re-com/re-com              {:mvn/version "2.13.2"}}}
 
   :clj         {:extra-paths ["repl-server" "repl-specs" "resources"]
                 :extra-deps  {clj-deps/clj-deps           {:mvn/version "0.4.10"}

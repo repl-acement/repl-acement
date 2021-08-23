@@ -8,7 +8,6 @@
     [reagent.core :as reagent]
     [reagent.dom :as rdom]
     [replacement.ui.events :as events]
-    [replacement.ui.code-mirror :as code-mirror]
     [replacement.ui.views.visual-history :as visual-history]))
 
 ; padding order is: top right bottom left
@@ -18,30 +17,11 @@
 (defonce eval-component-style (merge (flex-child-style "1")
                                      {:padding "5px 5px 0px 5px"}))
 
-(defn eval-did-mount
-  []
-  (fn [this]
-    (letfn [(scrollToBottom [cm]
-              (.scrollIntoView cm #js {:line (.lastLine cm)}))]
-      (let [node        (rdom/dom-node this)
-            options     {:options {:lineWrapping true
-                                   :readOnly     true}}
-            code-mirror (code-mirror/parinfer node options)]
-        (.on code-mirror "change" #(scrollToBottom code-mirror))
-        (re-frame/dispatch [::events/eval-code-mirror code-mirror])))))
-
-(defn eval-component
-  [panel-name]
-  (reagent/create-class
-    {:component-did-mount  (eval-did-mount)
-     :reagent-render       (code-mirror/text-area (str "eval-" panel-name))
-     :component-did-update #(-> nil)                        ; noop to prevent reload
-     :display-name         "eval"}))
 
 (defn eval-panel
   [panel-name]
   [h-box :size "auto"
    :children
    [[box :style eval-component-style
-     :child [eval-component panel-name]]
+     :child [label :label panel-name]]
     [visual-history/editor-history]]])

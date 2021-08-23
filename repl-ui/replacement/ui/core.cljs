@@ -11,11 +11,9 @@
 
 (defn mount-root []
   (re-frame/clear-subscription-cache!)
-  (let [el (.getElementById js/document "app")]
-    (rdom/unmount-component-at-node el)
-    (rdom/render [main-view/main-panel] el)))
+  [main-view/render])
 
-(defn ^:export init []
+(defn init []
   (re-frame/dispatch-sync [::events/initialize-db])
   (dev-setup)
   (mount-root))

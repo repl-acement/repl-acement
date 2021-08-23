@@ -58,6 +58,7 @@
 (defn- shared-eval*
   "Evaluate the form(s) provided in the string `form` using the given `writer`"
   [{:keys [opts client]} {:keys [form user] :as message-data}]
+  (prn :shared-eval* :form form :user user)
   (let [{:keys [reader writer]} client
         {:keys [out-ch]} opts]
     (try
@@ -75,6 +76,7 @@
                     ret-tag-count (if (= :ret (:tag output-map))
                                     (inc ret-tag-count)
                                     ret-tag-count)]
+                (prn :out-map out-map)
                 (a/put! out-ch out-map)
                 (when-not (= form-count ret-tag-count)
                   (recur (read-fn)

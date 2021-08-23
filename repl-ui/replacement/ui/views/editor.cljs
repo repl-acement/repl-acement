@@ -8,7 +8,6 @@
     [reagent.core :as reagent]
     [reagent.dom :as rdom]
     [replacement.specs.user :as user]
-    [replacement.ui.code-mirror :as code-mirror]
     [replacement.ui.events :as events]
     [replacement.ui.subs :as subs]
     [replacement.ui.views.other-editor :as other-editor]
@@ -37,29 +36,6 @@
   [new-value]
   (dispatch [::events/current-form new-value]))
 
-(defn editor-did-mount
-  [extra-key-bindings]
-  (fn [this-textarea]
-    (let [node        (rdom/dom-node this-textarea)
-          options     {:options {:lineWrapping  true
-                                 :autofocus     true
-                                 :matchBrackets true
-                                 :lineNumbers   true
-                                 :extraKeys     extra-key-bindings}}
-          code-mirror (code-mirror/parinfer node options)]
-
-      (.on code-mirror "change" (fn [cm _co]
-                                  (notify-edits (.getValue cm))))
-
-      (dispatch [::events/code-mirror code-mirror]))))
-
-(defn edit-component
-  [panel-name extra-key-bindings]
-  (reagent/create-class
-    {:component-did-mount  (editor-did-mount extra-key-bindings)
-     :reagent-render       (code-mirror/text-area panel-name)
-     :component-did-update #(-> nil)                        ; noop to prevent reload
-     :display-name         "local-editor"}))
 
 (defn- key-binding
   [key-map [button event]]
@@ -83,10 +59,7 @@
       (let [editor-name (::user/name user)
             extra-keys  (extra-key-bindings @key-bindings event-bindings)]
         [v-box :size "auto" :children
-         [[box :size "auto"
-           :style edit-panel-style
-           :child [edit-component editor-name extra-keys]]
-          [gap :size "5px"]
+         [[gap :size "5px"]
           [h-box :children
            [[button
              :label (str "Eval")

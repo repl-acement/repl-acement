@@ -6,7 +6,8 @@
     [taoensso.timbre :as timbre :refer [tracef debugf infof warnf errorf]]
     [taoensso.sente :as sente :refer [cb-success?]]
     [taoensso.sente.packers.transit :as sente-transit]
-    [taoensso.timbre :as timbre]))
+    [taoensso.timbre :as timbre]
+    [replacement.specs.user :as user]))
 
 ; --- WS client ---
 (declare chsk ch-chsk chsk-send! chsk-state)
@@ -29,11 +30,14 @@
 (defmethod -event-msg-handler :chsk/state
   [{:keys [?data]}]
   (let [[_ new-state-map] (have vector? ?data)]
+    (prn :state new-state-map)
     (reset! client-uid (:uid new-state-map))
     (re-frame/dispatch [:replacement.ui.events/client-uid (:uid new-state-map)])
-    (re-frame/dispatch [:replacement.ui.events/network-status (:open? new-state-map)])))
-
-(println :new-ws-loaded)
+    (re-frame/dispatch [:replacement.ui.events/network-status (:open? new-state-map)])
+    ;; Hack to close the loop for anonymous local editors
+    (re-frame/dispatch [:replacement.ui.events/login {:team-name  "team-name"
+                                                      :secret     "team-secret"
+                                                      ::user/name "Editor"}])))
 
 (defmethod -event-msg-handler :chsk/recv
   [{:keys [?data]}]

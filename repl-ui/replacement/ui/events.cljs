@@ -4,13 +4,12 @@
     [clojure.core.async]
     [clojure.string :as string]
     [re-frame.core :as re-frame :refer [reg-event-db reg-event-fx reg-fx]]
-    [replacement.ui.code-mirror :as code-mirror]
     [replacement.ui.helpers :refer [js->cljs]]
     [replacement.ui.ws :as ws]
     [replacement.specs.messages :as message-specs]
     [replacement.specs.user :as user-specs]
     [taoensso.sente :as sente]
-    [cljsjs.google-diff-match-patch]))
+    [clojure.edn :as edn]))
 
 (def system-user (user-specs/->user "system" "0"))
 
@@ -56,7 +55,7 @@
   (fn [db [_ uid]]
     (if-let [{::user-specs/keys [name]} (::user-specs/user db)]
       (assoc db ::user-specs/user (user-specs/->user name uid) ::user-specs/uid uid)
-      (assoc db ::user-specs/uid uid))))
+      (assoc db ::user-specs/user (user-specs/->user "Editor" uid) ::user-specs/uid uid))))
 
 (defn pred-fails
   [problems]
@@ -70,12 +69,15 @@
   {:nk-tag tag :nk-val (rdr/read-string (str val))})
 
 ;; TODO deal with ex-data / Throwable->map
-(defn read-exception
+(defn safe-read
   [val]
   (try
-    (let [reader-opts {:default default-reptile-tag-reader}]
+    (let [reader-opts {:default default-reptile-tag-reader :eof nil}]
       (rdr/read-string reader-opts val))
-    (catch :default _ignore-reader-errors)))
+    (catch :default _ignored-ex
+      (cond
+        (= "#" (first val)) (symbol val)
+        :else val))))
 
 (def bugs "...\n")
 
@@ -83,7 +85,7 @@
 ;; TODO enable expansion or some other UI affordance for full exception data
 (defn check-exception
   [val]
-  (let [{:keys [cause via trace data phase]} (read-exception val)
+  (let [{:keys [cause via trace data phase]} (safe-read val)
         problems (:clojure.spec.alpha/problems data)
         spec     (:clojure.spec.alpha/spec data)
         value    (:clojure.spec.alpha/value data)
@@ -114,14 +116,6 @@
   [show-times? results]
   (doall (map (partial format-response show-times?) results)))
 
-(reg-event-fx
-  ::clear-evals
-  (fn [{:keys [db]} [_ _]]
-    (when-let [code-mirror (:eval-code-mirror db)]
-      {:db                        (assoc db :eval-results [])
-       ::code-mirror/set-cm-value {:value       ""
-                                   :code-mirror code-mirror}})))
-
 (reg-event-db
   ::input-history
   (fn [db [_ clojure-form]]
@@ -130,19 +124,20 @@
         :input-history (conj history clojure-form)
         :history-index (count history)))))
 
-(reg-event-fx
+(reg-fx
+  ::set-cm-value
+  (fn [{:keys [value code-mirror]}]
+    (prn ::set-cm-value :value value :code-mirror code-mirror)))
+
+(reg-event-db
   ::eval-result
-  (fn [{:keys [db]} [_ {:keys [form val] :as eval-result}]]
+  (fn [db [_ {:keys [form val] :as eval-result}]]
     (prn :eval-result eval-result)
+    (when-let [result-fn (:result-fn db)]
+      (result-fn (safe-read val)))
     (if (= form "*clojure-version*")
-      {:db (assoc db :clojure-version val)}
-      (let [code-mirror  (:eval-code-mirror db)
-            show-times?  (true? (:show-times db))
-            eval-results (conj (:eval-results db) eval-result)
-            str-results  (apply str (reverse (format-results show-times? eval-results)))]
-        {:db                        (assoc db :eval-results eval-results)
-         ::code-mirror/set-cm-value {:value       str-results
-                                     :code-mirror code-mirror}}))))
+      (assoc db :clojure-version val)
+      (assoc db :eval-results (conj (:eval-results db) eval-result)))))
 
 (reg-event-fx
   ::show-times
@@ -151,9 +146,9 @@
           show-times?  (true? show-times)
           eval-results (:eval-results db)
           str-results  (apply str (reverse (format-results show-times? eval-results)))]
-      {:db                        (assoc db :show-times show-times)
-       ::code-mirror/set-cm-value {:value       str-results
-                                   :code-mirror code-mirror}})))
+      {:db            (assoc db :show-times show-times)
+       ::set-cm-value {:value       str-results
+                       :code-mirror code-mirror}})))
 
 (reg-event-db
   ::eval-code-mirror
@@ -186,6 +181,11 @@
           user (::user-specs/user db)]
       {:db          (assoc db :form-to-eval form)
        ::>repl-eval [:user user form]})))
+
+(reg-event-db
+  ::result-fn
+  (fn [db [_ result-fn]]
+    (assoc db :result-fn result-fn)))
 
 (reg-event-fx
   ::clojure-version
@@ -287,17 +287,17 @@
   ::history-prev
   (fn [{:keys [db]} _]
     (let [db (next-prev db dec)]
-      {:db                        db
-       ::code-mirror/set-cm-value {:code-mirror (:code-mirror db)
-                                   :value       (:current-form db)}})))
+      {:db            db
+       ::set-cm-value {:code-mirror (:code-mirror db)
+                       :value       (:current-form db)}})))
 
 (reg-event-fx
   ::history-next
   (fn [{:keys [db]} _]
     (let [db (next-prev db inc)]
-      {:db                        db
-       ::code-mirror/set-cm-value {:code-mirror (:code-mirror db)
-                                   :value       (:current-form db)}})))
+      {:db            db
+       ::set-cm-value {:code-mirror (:code-mirror db)
+                       :value       (:current-form db)}})))
 
 (reg-event-db
   ::logged-in-user
@@ -336,8 +336,8 @@
       (let [editor-key   (keyword (::user-specs/name user))
             code-mirrors (:other-user-code-mirrors db)
             code-mirror  (get code-mirrors editor-key)]
-        {:db                        db
-         ::code-mirror/set-cm-value {:code-mirror code-mirror
-                                     :value       form}}))))
+        {:db            db
+         ::set-cm-value {:code-mirror code-mirror
+                         :value       form}}))))
 
 
