@@ -1,6 +1,6 @@
-{:deps   {:aliases [:dev :demo]}
- :builds {:demo {:compiler-options {:output-feature-set :es8}
-                 :target           :browser
-                 :output-dir       "resources/public/js"
-                 :asset-path       "js"
-                 :modules          {:main {:init-fn replacement.ui.core/init}}}}}
+{:deps   {:aliases [:dev :repl-ui]}
+ :builds {:repl-ui {:compiler-options {:output-feature-set :es8}
+                    :target           :browser
+                    :output-dir       "resources/public/js"
+                    :asset-path       "js"
+                    :modules          {:main {:init-fn replacement.ui.core/init}}}}}

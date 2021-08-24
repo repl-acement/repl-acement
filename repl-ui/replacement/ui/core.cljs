@@ -3,8 +3,7 @@
     [re-frame.core :as re-frame]
     [replacement.ui.events :as events]
     [replacement.ui.main-view :as main-view]
-    [replacement.ui.subs]
-    [reagent.dom :as rdom]))
+    [replacement.ui.subs]))
 
 (defn dev-setup []
   (enable-console-print!))

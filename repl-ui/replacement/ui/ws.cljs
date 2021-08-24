@@ -34,6 +34,7 @@
     (reset! client-uid (:uid new-state-map))
     (re-frame/dispatch [:replacement.ui.events/client-uid (:uid new-state-map)])
     (re-frame/dispatch [:replacement.ui.events/network-status (:open? new-state-map)])
+
     ;; Hack to close the loop for anonymous local editors
     (re-frame/dispatch [:replacement.ui.events/login {:team-name  "team-name"
                                                       :secret     "team-secret"

@@ -12,7 +12,7 @@
                 :extra-deps  {applied-science/js-interop {:mvn/version "0.2.5"}
                               thheller/shadow-cljs       {:mvn/version "2.14.4"}}}
 
-  :demo        {:extra-paths ["repl-ui" "resources" "repl-specs"]
+  :repl-ui     {:extra-paths ["repl-ui" "resources" "repl-specs"]
                 :extra-deps  {org.clojure/clojurescript  {:mvn/version "1.10.866"}
                               nextjournal/clojure-mode   {:git/url "https://github.com/nextjournal/clojure-mode"
                                                           :sha     "a83c87cd2bd2049b70613f360336a096d15c5518"}

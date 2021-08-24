@@ -105,7 +105,7 @@
           [:span.mr-2 "⚡️"]
           [:div.flex-auto
            [:span.font-bold "Lightning-fast"] "with " [:a {:href "https://lezer.codemirror.net"} "lezer incremental parsing"] [:br]
-           [:span.text-sm "Copy" [:a {:href "https://raw.githubusercontent.com/clojure/clojure/master/src/clj/clojure/core.clj" :target "_blank"} [:code "clojure/core.clj"]] "into 👈" [:span.ml-1 "to try!"]]]]
+           [:span.text-sm "Copy " [:a {:href "https://raw.githubusercontent.com/clojure/clojure/master/src/clj/clojure/core.clj" :target "_blank"} [:code "clojure/core.clj"]] "into 👈" [:span.ml-1 "to try!"]]]]
          [:li.mt-4.flex
           [:span.mr-2 "🥤"]
           [:div.flex-auto.overflow-x-auto
@@ -158,7 +158,8 @@
           [:div.flex-auto
            [:span.font-bold "Autoformatting"]
            [:p.mt-1.text-sm "following " [:a {:href "https://tonsky.me/blog/clojurefmt/"} "Tonsky’s Better Clojure Formatting"]]]]]]]]
-     [:script {:src "js/main.js"}]]))
+     [:script {:src "js/main.js"}]
+     [:script "replacement.ui.core.init();"]]))
 
 (defroutes ring-routes
            (GET "/" ring-req (landing-pg-handler ring-req))
