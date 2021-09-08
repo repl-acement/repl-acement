@@ -158,8 +158,7 @@
           [:div.flex-auto
            [:span.font-bold "Autoformatting"]
            [:p.mt-1.text-sm "following " [:a {:href "https://tonsky.me/blog/clojurefmt/"} "Tonsky’s Better Clojure Formatting"]]]]]]]]
-     [:script {:src "js/main.js"}]
-     [:script "replacement.ui.core.init();"]]))
+     [:script {:src "js/main.js"}]]))
 
 (defroutes ring-routes
            (GET "/" ring-req (landing-pg-handler ring-req))

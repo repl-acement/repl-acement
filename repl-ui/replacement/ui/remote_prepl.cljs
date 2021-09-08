@@ -11,17 +11,13 @@
 
 ;; work out how to catch keystrokes
 (defn eval-string
-  ([source]
-   (eval-string @res-fn source))
-  ([result-fn source]
-   (try
-     (reset! res-fn result-fn)
-     (dispatch-sync [::events/result-fn result-fn])
-     (dispatch-sync [::events/current-form source])
-     (dispatch-sync [::events/eval])
-     (catch js/Error e
-       (prn :ex e)
-       (str e)))))
+  [source]
+  (try
+    (dispatch-sync [::events/current-form source])
+    (dispatch-sync [::events/eval])
+    (catch js/Error e
+      (prn :ex e)
+      (str e))))
 
 (j/defn eval-at-cursor [^:js {:keys [state]}]
         (some->> (eval-region/cursor-node-string state)

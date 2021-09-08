@@ -5,6 +5,7 @@
   org.clojure/core.async      {:mvn/version "1.3.610"}
   org.clojure/tools.logging   {:mvn/version "1.1.0"}
   org.clojure/tools.namespace {:mvn/version "1.1.0"}
+  org.clojure/tools.reader    {:mvn/version "1.3.6"}
   org.slf4j/slf4j-simple      {:mvn/version "1.7.30"}}
 
  :aliases
@@ -29,6 +30,8 @@
                               compojure/compojure         {:mvn/version "1.6.2"}
                               hiccup/hiccup               {:mvn/version "1.0.5"}
                               http-kit/http-kit           {:mvn/version "2.5.3"}
+                              org.flatland/ordered        {:mvn/version "1.5.9"}
+                              rewrite-clj/rewrite-clj     {:mvn/version "1.0.682-alpha"}
                               ring/ring                   {:mvn/version "1.9.3"}
                               ring/ring-defaults          {:mvn/version "0.3.2"}}}
 

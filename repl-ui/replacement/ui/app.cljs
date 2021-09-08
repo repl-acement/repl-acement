@@ -1,4 +1,4 @@
-(ns replacement.ui.core
+(ns replacement.ui.app
   (:require
     [re-frame.core :as re-frame]
     [replacement.ui.events :as events]
@@ -12,7 +12,7 @@
   (re-frame/clear-subscription-cache!)
   [main-view/render])
 
-(defn init []
+(defn ^:dev/after-load init []
   (re-frame/dispatch-sync [::events/initialize-db])
   (dev-setup)
   (mount-root))

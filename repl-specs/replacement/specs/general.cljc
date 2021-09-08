@@ -4,8 +4,7 @@
             [clojure.string :as string]))
 
 (spec/def ::string-data
-  (spec/and string?
-            #(not (string/blank? %))))
+  (spec/and string? #(not (string/blank? %))))
 
 ;; Check all calls
 (stest/instrument)

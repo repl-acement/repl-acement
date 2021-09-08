@@ -22,7 +22,9 @@
             [nextjournal.clojure-mode.test-utils :as test-utils]
             [reagent.core :as r]
             [reagent.dom :as rdom]
-            [replacement.ui.remote-prepl :as prepl]))
+            [re-frame.core :as rf]
+            [replacement.ui.remote-prepl :as prepl]
+            [replacement.ui.subs :as subs]))
 
 (def theme
   (.theme EditorView
@@ -62,8 +64,8 @@
 
 (defn editor [source {:keys [eval?]}]
   (r/with-let [!view (r/atom nil)
-               last-result (r/atom nil)
-               initial-eval (when eval? (prepl/eval-string (partial result-callback last-result) source))
+               eval-result (rf/subscribe [::subs/eval-results])
+               initial-eval (when eval? (prepl/eval-string source))
                mount! (fn [el]
                         (when el
                           (reset! !view (new EditorView
@@ -73,20 +75,22 @@
                                                               eval? (.concat #js [(prepl/extension {:modifier "Alt"})]))
                                                       source)
                                                     :parent el)))))]
-              [:div
-               [:div {:class "rounded-md mb-0 text-sm monospace overflow-auto relative border shadow-lg bg-white"
-                      :ref   mount!
-                      :style {:max-height 410}}]
-               (when eval?
-                 [:div.mt-3.mv-4.pl-6 {:style {:white-space "pre-wrap" :font-family "var(--code-font)"}}
-                  (prn-str @last-result)])]
+              (let [{:keys [val]} (first @eval-result)
+                    output (cljs.tools.reader.edn/read-string val)]
+                [:div
+                 [:div {:class "rounded-md mb-0 text-sm monospace overflow-auto relative border shadow-lg bg-white"
+                        :ref   mount!
+                        :style {:max-height 410}}]
+                 (when eval?
+                   [:div.mt-3.mv-4.pl-6 {:style {:white-space "pre-wrap" :font-family "var(--code-font)"}}
+                    (prn-str output)])])
               (finally
                 (j/call @!view :destroy))))
 
 
 (defn samples []
   (into [:<>]
-        (for [source ["(+ 1 2)"]]
+        (for [source ["(+ 1 2 3)"]]
           [editor source {:eval? true}])))
 
 (defn linux? []

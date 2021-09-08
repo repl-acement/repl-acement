@@ -8,8 +8,7 @@
     [replacement.ui.ws :as ws]
     [replacement.specs.messages :as message-specs]
     [replacement.specs.user :as user-specs]
-    [taoensso.sente :as sente]
-    [clojure.edn :as edn]))
+    [taoensso.sente :as sente :refer []]))
 
 (def system-user (user-specs/->user "system" "0"))
 
@@ -261,7 +260,7 @@
   ::>current-form
   (fn [[form user]]
     (ws/chsk-send!
-      [:replacement/keystrokes (message-specs/->keystrokes form user)])))
+      [:replacement/keystrokes (message-specs/->keystrokes form (or user system-user))])))
 
 (reg-event-fx
   ::current-form

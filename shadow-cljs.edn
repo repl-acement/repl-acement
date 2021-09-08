@@ -3,4 +3,4 @@
                     :target           :browser
                     :output-dir       "resources/public/js"
                     :asset-path       "js"
-                    :modules          {:main {:init-fn replacement.ui.core/init}}}}}
+                    :modules          {:main {:init-fn replacement.ui.app/init}}}}}
