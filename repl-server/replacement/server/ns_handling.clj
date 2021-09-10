@@ -119,7 +119,7 @@
                                                               :name-ns     name-ns}))))
     {} (ns-find/sources-in-jar jarfile)))
 
-(defn jar-entries+ns-decls
+(defn jar-data
   [jars]
   (reduce
     (fn [ns-decls jar]
@@ -151,7 +151,7 @@
                                                 :name-ns     name-ns}))))
     {} (ns-find/find-sources-in-dir dir)))
 
-(defn dir-entries+ns-decls
+(defn dir-data
   [dirs]
   (reduce (fn [ns-decls dir]
             (let [decls (not-empty (dir-files+ns-decls dir))]
@@ -159,27 +159,20 @@
                       decls (assoc dir decls))))
           {} dirs))
 
-(def ns-decls+disk-locations
-  (let [cp      (classpath/classpath)
-        cp-jars (filter classpath/jar-file? cp)
-        cp-dirs (filter #(-> (.isDirectory ^File %)) cp)]
-    (merge (jar-entries+ns-decls cp-jars)
-           (dir-entries+ns-decls cp-dirs))))
-
 (defn require-fail?
   "Attempt to require the ns, will usually work if it's on the CLASSPATH,
   will return true if the prepl raises an exception"
   [prepl-opts user ns-x]
-  (boolean (time (some-> prepl-opts
-                         (async-prepl/sync-eval {:forms [(require ns-x)]
-                                                 :user  user})
-                         not-empty
-                         first
-                         :exception))))
+  (boolean (some-> prepl-opts
+                   (async-prepl/sync-eval {:forms [(require ns-x)]
+                                           :user  user})
+                   not-empty
+                   first
+                   :exception)))
 
 (defn trace-deps
-  [nses & {:keys [dep-fn apply-all] :or {dep-fn    prn
-                                         apply-all false}}]
+  [nses {:keys [dep-fn apply-all] :or {dep-fn    prn
+                                       apply-all false}}]
   (let [seen           (atom #{})
         dep-node-count (atom 0)]
     (clojure.walk/postwalk
@@ -198,7 +191,6 @@
 
 (defn eval-deps!
   [an-ns ns-decls+disk-locations prepl-opts user]
-  (prn :doing-it)
   (letfn [(dep-fn [ns-sym]
             (when (require-fail? prepl-opts user ns-sym)
               (let [{:keys [name-ns forms]} (ns-decls+disk-locations ns-sym)]
@@ -219,35 +211,36 @@
 
 (def system-user (user-specs/->user "system" "0"))
 
+
 (comment
 
-  ;; wasted a lot of time loading deps that are on the CLASSPATH!!
+  ;; TODO NEXT
   ;; need to test loading stuff that is not on the CLASSPATH but requires
-  ;; stuff that is on the CLASSPATH
+  ;; stuff that is on the CLASSPATH eg nses from the DB
+
+
+  ;; DONE
+
+  ;; Obtain data from nses on the CLASSPATH
+  (def classpath-data
+    (let [cp      (classpath/classpath)
+          cp-jars (filter classpath/jar-file? cp)
+          cp-dirs (filter #(-> (.isDirectory ^File %)) cp)]
+      (merge (jar-data cp-jars)
+             (dir-data cp-dirs))))
+
   (def example-ns 'clojure.core.async)
 
   (def prepl-chan (a/chan (a/buffer 8092)))
   (def prepl-opts (atom (async-prepl/init-prepl {:out-ch prepl-chan})))
 
-  (time (eval-ns! example-ns ns-decls+disk-locations @prepl-opts system-user))
+  ;; Can Eval an ns
+  (time (eval-ns! example-ns classpath-data @prepl-opts system-user))
 
-  (time (eval-deps! example-ns ns-decls+disk-locations @prepl-opts system-user))
+  ;; Can Eval deps of an NS if needed
+  (time (eval-deps! example-ns classpath-data @prepl-opts system-user))
 
-  (def example-ns-forms (ns-decls+disk-locations example-ns))
 
-  (async-prepl/sync-eval @prepl-opts {:forms (:forms example-ns-forms)
-                                      :user  system-user})
-
-  (async-prepl/sync-eval @prepl-opts {:forms [(require example-ns)]
-                                      :user  system-user})
-
-  (async-prepl/sync-eval @prepl-opts {:forms '[(ns clojure.core.async)]
-                                      :user  system-user})
-
-  (async-prepl/sync-eval @prepl-opts {:forms '[(ns my-ns
-                                                 (:require [clojure.core.async :as a]))
-                                               (a/chan)]
-                                      :user  system-user})
 
   ;; end comment
   )
