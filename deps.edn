@@ -23,7 +23,9 @@
                               re-com/re-com              {:mvn/version "2.13.2"}}}
 
   :clj         {:extra-paths ["repl-server" "repl-specs" "resources"]
-                :extra-deps  {clj-deps/clj-deps           {:mvn/version "0.4.10"}
+                :extra-deps  {carocad/parcera             {:mvn/version "0.11.6"}
+                              org.antlr/antlr4-runtime    {:mvn/version "4.7.1"}
+                              clj-deps/clj-deps           {:mvn/version "0.4.10"}
                               clj-kondo/clj-kondo         {:mvn/version "RELEASE"}
                               com.cognitect/transit-clj   {:mvn/version "1.0.324"}
                               commons-codec/commons-codec {:mvn/version "1.15"}

@@ -9,16 +9,14 @@
            (java.net ServerSocket Socket)))
 
 (set! *warn-on-reflection* true)
-
-(defn nk-tag-reader
-  [tag val]
-  {:nk-tag tag :nk-val (read-string (str val))})
+(set! *default-data-reader-fn* tagged-literal)
 
 (defn write-form
   "Write `form` for evaluation in the PREPL using the `writer`"
   [writer form]
   (binding [*out*              writer
-            *flush-on-newline* true]
+            *flush-on-newline* true
+            *print-meta*       true]
     (prn form)))
 
 (defmacro with-read-known
@@ -41,7 +39,7 @@
            bytes->hex))))
 
 (defn message->forms
-  "Produce a list of expression(s) in string `s` that can be read. Any read failure throws"
+  "Produce a list of forms read from string `s`. Any read failure throws"
   [s]
   (let [EOF    (Object.)
         reader (LineNumberingPushbackReader. (StringReader. s))]
@@ -55,18 +53,60 @@
   [ex phase]
   (assoc (Throwable->map ex) :phase phase))
 
+(defn sync-eval*
+  "Evaluate the forms provided using the given `writer`"
+  [{:keys [client]} {:keys [forms user name-ns] :or {name-ns 'user} :as message-data}]
+  (let [{:keys [reader writer]} client]
+    (try
+      (let [form-count   (count forms)
+            default-data {:ns name-ns, :ms 0 :tag :ret :val "nil" :user user :input forms}]
+        (if-not (seq forms)
+          [(merge message-data default-data)]
+          (let [_sent   (doall (map (fn [form]
+                                      (write-form writer form))
+                                    forms))
+                EOF     (Object.)
+                read-fn #(with-read-known (read reader false EOF))]
+            (loop [output        []
+                   output-map    (read-fn)
+                   ret-tag-count 0]
+              (let [out-map       (assoc output-map :user user)
+                    output        (conj output out-map)
+                    ret-tag-count (if (= :ret (:tag output-map))
+                                    (inc ret-tag-count)
+                                    ret-tag-count)]
+                (if (= form-count ret-tag-count)
+                  output
+                  (recur output
+                         (read-fn)
+                         ret-tag-count)))))))
+      (catch Throwable ex
+        (let [msg+ex (merge {:exception true
+                             :ns        :unknown
+                             :user      user
+                             :ms        0
+                             :tag       :ret
+                             :val       (ex->data ex :eval-forms)}
+                            message-data)]
+          [msg+ex])))))
+
+(defn sync-eval [prepl-opts message-data]
+  (sync-eval* prepl-opts message-data))
+
 (defn- shared-eval*
   "Evaluate the form(s) provided in the string `form` using the given `writer`"
-  [{:keys [opts client]} {:keys [form user] :as message-data}]
+  [{:keys [opts client]} {:keys [form user name-ns] :or {name-ns 'user} :as message-data}]
   (let [{:keys [reader writer]} client
         {:keys [out-ch]} opts]
     (try
       (let [forms        (message->forms form)
             form-count   (count forms)
-            default-data {:ns "user", :ms 0 :tag :ret :val "nil" :user user :input form}]
+            default-data {:ns name-ns, :ms 0 :tag :ret :val "nil" :user user :input form}]
         (if-not (seq forms)
           (a/put! out-ch (merge message-data default-data))
-          (let [_sent   (doall (map (partial write-form writer) forms))
+          (let [_sent   (doall (map (fn [form]
+                                      (write-form writer form))
+                                    forms))
                 EOF     (Object.)
                 read-fn #(with-read-known (read reader false EOF))]
             (loop [output-map    (read-fn)
@@ -79,10 +119,10 @@
                 (when-not (= form-count ret-tag-count)
                   (recur (read-fn)
                          ret-tag-count)))))))
-      (catch Throwable ex
+      (catch Throwable trouble
         (a/put! out-ch (assoc message-data
-                         :exception true :ns "user" :user user
-                         :ms 0 :tag :ret :val (ex->data ex :eval-forms)))))))
+                         :exception true :ns name-ns :user user
+                         :ms 0 :tag :ret :val (ex->data trouble :eval-forms)))))))
 
 (defn shared-eval [prepl-opts message-data]
   (future (shared-eval* prepl-opts message-data)))

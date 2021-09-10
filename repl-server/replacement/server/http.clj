@@ -2,7 +2,7 @@
   (:require
     [clojure.core.async :as async :refer [chan]]
     [org.httpkit.server :as http-kit]
-    [replacement.server.analysis :as analysis]
+    ;[replacement.server.analysis :as analysis]
     [replacement.server.async-prepl :as socket-prepl]
     [replacement.specs.user :as user-specs]
     [replacement.server.web :as web]
@@ -70,7 +70,7 @@
 (defmethod ^:private -event-msg-handler :replacement/keystrokes
   [{:keys [?data]}]
   (>send [:replacement/keystrokes ?data])
-  (>send [:replacement/analysis (analysis/clj-kondo ?data)]))
+ #_(>send [:replacement/analysis (analysis/clj-kondo ?data)]))
 
 (defmethod ^:private -event-msg-handler :replacement/eval
   [{:keys [?data]}]
