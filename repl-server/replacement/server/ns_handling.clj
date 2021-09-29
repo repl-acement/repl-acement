@@ -21,22 +21,15 @@
     (ns-parse/deps-from-ns-decl form)))
 
 (defn ns-deps
-  [ns-name ns-decls+disk-locations]
-  (reduce
-    (fn [results dep]
-      (assoc results dep (ns-deps dep ns-decls+disk-locations)))
-    {} (get-deps (:decl-ns (ns-decls+disk-locations ns-name)))))
-
-(defn ns-deps-vec
-  ([ns-name ns-decls+disk-locations]
-   (ns-deps-vec 0 ns-name ns-decls+disk-locations))
-  ([level ns-name ns-decls+disk-locations]
+  ([ns-name classpath-data]
+   (ns-deps 0 ns-name classpath-data))
+  ([level ns-name classpath-data]
    (reduce
      (fn [results dep]
        (let [[level] results
              next-level (inc level)]
-         (conj results [next-level dep (ns-deps-vec next-level dep ns-decls+disk-locations)])))
-     [level] (-> ns-name ns-decls+disk-locations :decl-ns get-deps))))
+         (conj results [next-level dep (ns-deps next-level dep classpath-data)])))
+     [level] (-> ns-name classpath-data :decl-ns get-deps))))
 
 (defn ns-string->ns-decl
   "Obtain the ns declaration from a given ns as an unevaluated form."
@@ -80,11 +73,11 @@
    (read-jarfile-entry jarfile entry-name nil))
   ([^JarFile jarfile ^String entry-name platform]
    (let [{:keys [read-opts]} (or platform ns-find/clj)
-         stream (->> (.getEntry jarfile entry-name)
-                     (.getInputStream jarfile))
          text   (->> (.getEntry jarfile entry-name)
                      (.getInputStream jarfile)
-                     (slurp))]
+                     (slurp))
+         stream (->> (.getEntry jarfile entry-name)
+                     (.getInputStream jarfile))]
      {:text  text
       :ast   (parcera/ast text)
       :forms (read-stream stream read-opts)})))
@@ -190,21 +183,21 @@
      :dep-nodes @dep-node-count}))
 
 (defn eval-deps!
-  [an-ns ns-decls+disk-locations prepl-opts user]
+  [an-ns classpath-data prepl-opts user]
   (letfn [(dep-fn [ns-sym]
             (when (require-fail? prepl-opts user ns-sym)
-              (let [{:keys [name-ns forms]} (ns-decls+disk-locations ns-sym)]
+              (let [{:keys [name-ns forms]} (classpath-data ns-sym)]
                 (async-prepl/sync-eval prepl-opts {:forms   forms
                                                    :name-ns name-ns
                                                    :user    user}))))]
-    (let [nses (ns-deps-vec an-ns ns-decls+disk-locations)]
+    (let [nses (ns-deps an-ns classpath-data)]
       (trace-deps nses {:dep-fn dep-fn}))))
 
 (defn eval-ns!
-  [an-ns ns-decls+disk-locations prepl-opts user]
+  [an-ns classpath-data prepl-opts user]
   (when (require-fail? prepl-opts user an-ns)
-    (let [{:keys [name-ns forms]} (ns-decls+disk-locations an-ns)]
-      (eval-deps! an-ns ns-decls+disk-locations prepl-opts user)
+    (let [{:keys [name-ns forms]} (classpath-data an-ns)]
+      (eval-deps! an-ns classpath-data prepl-opts user)
       (async-prepl/sync-eval prepl-opts {:forms   forms
                                          :name-ns name-ns
                                          :user    user}))))
@@ -245,7 +238,6 @@
   ;; end comment
   )
 
-
 ;;;; Q: is each path safe to be evaluated in parallel?
 
 ;; add a pipeline function to make a small change
@@ -261,4 +253,6 @@
 ;; reload the changes
 ;;;; just reload all initially and lose state
 ;;;; need an in memory / DB version of ns-repl/refresh-all
+
+;;;; Add datafy / nav to the code AST once the DB graph is designed
 
