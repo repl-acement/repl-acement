@@ -101,11 +101,6 @@
         [:div#editor]]
        [:div.flex-shrink-0.md:px-6.sans-serif {:class "md:w-1/2"}
         [:ul.text-lg
-         [:li.pr-12.flex
-          [:span.mr-2 "⚡️"]
-          [:div.flex-auto
-           [:span.font-bold "Lightning-fast"] "with " [:a {:href "https://lezer.codemirror.net"} "lezer incremental parsing"] [:br]
-           [:span.text-sm "Copy " [:a {:href "https://raw.githubusercontent.com/clojure/clojure/master/src/clj/clojure/core.clj" :target "_blank"} [:code "clojure/core.clj"]] "into 👈" [:span.ml-1 "to try!"]]]]
          [:li.mt-4.flex
           [:span.mr-2 "🥤"]
           [:div.flex-auto.overflow-x-auto
@@ -152,12 +147,7 @@
              [:tr.border-t
               [:td.py-1.pr-12 "Cell"]
               [:td.py-1.text-right
-               [:span.kbd.mod "Mod"] "+" [:span.kbd "⏎"]]]]]]]
-         [:li.mt-4.flex
-          [:span.mr-2 "🧹"]
-          [:div.flex-auto
-           [:span.font-bold "Autoformatting"]
-           [:p.mt-1.text-sm "following " [:a {:href "https://tonsky.me/blog/clojurefmt/"} "Tonsky’s Better Clojure Formatting"]]]]]]]]
+               [:span.kbd.mod "Mod"] "+" [:span.kbd "⏎"]]]]]]]]]]]
      [:script {:src "js/main.js"}]]))
 
 (defroutes ring-routes

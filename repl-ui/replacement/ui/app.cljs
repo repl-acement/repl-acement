@@ -10,7 +10,7 @@
 
 (defn mount-root []
   (re-frame/clear-subscription-cache!)
-  [main-view/render])
+  (main-view/render))
 
 (defn ^:dev/after-load init []
   (re-frame/dispatch-sync [::events/initialize-db])

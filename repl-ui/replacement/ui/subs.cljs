@@ -19,6 +19,11 @@
     (:eval-results db)))
 
 (reg-sub
+  ::latest-result
+  (fn [db]
+    (:latest-result db)))
+
+(reg-sub
   ::show-times
   (fn [db]
     (:show-times db)))

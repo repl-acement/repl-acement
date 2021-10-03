@@ -10,6 +10,7 @@
 (defonce res-fn (atom nil))
 
 ;; work out how to catch keystrokes
+;; >>>> we have that now!!!
 (defn eval-string
   [source]
   (try

@@ -23,8 +23,10 @@
             [reagent.core :as r]
             [reagent.dom :as rdom]
             [re-frame.core :as rf]
+            [replacement.ui.events :as events]
             [replacement.ui.remote-prepl :as prepl]
-            [replacement.ui.subs :as subs]))
+            [replacement.ui.subs :as subs]
+            [cljs.tools.reader.edn :as edn]))
 
 (def theme
   (.theme EditorView
@@ -35,7 +37,7 @@
                                              :line-height "1.6"
                                              :font-size   "16px"
                                              :font-family "var(--code-font)"}
-                  ".cm-matchingBracket"     {:border-bottom "1px solid var(--teal-color)"
+                  ".cm-matchingBracket"     {:border-bottom "1px solid #ff0000"
                                              :color         "inherit"}
                   ".cm-gutters"             {:background "transparent"
                                              :border     "none"}
@@ -44,54 +46,63 @@
                   ".cm-cursor"              {:visibility "hidden"}
                   "&.cm-focused .cm-cursor" {:visibility "visible"}})))
 
-(defonce extensions #js[theme
-                        (history)
-                        highlight/defaultHighlightStyle
-                        (view/drawSelection)
-                        ;(lineNumbers)
-                        (fold/foldGutter)
-                        (.. EditorState -allowMultipleSelections (of true))
-                        (if false
-                          ;; use live-reloading grammar
-                          #js[(cm-clj/syntax live-grammar/parser)
-                              (.slice cm-clj/default-extensions 1)]
-                          cm-clj/default-extensions)
-                        (.of view/keymap cm-clj/complete-keymap)
-                        (.of view/keymap historyKeymap)])
+(def ^:private extensions #js[theme
+                              (history)
+                              highlight/defaultHighlightStyle
+                              (view/drawSelection)
+                              (fold/foldGutter)
+                              (.. EditorState -allowMultipleSelections (of true))
+                              cm-clj/default-extensions
+                              (.of view/keymap cm-clj/complete-keymap)
+                              (.of view/keymap historyKeymap)
+                              (.of view/keymap
+                                   (j/lit
+                                     [{:key "Alt-Enter"
+                                       :run (fn [x] (prepl/eval-cell x))}]))])
 
-(defn result-callback [result-atom result-data]
-  (reset! result-atom result-data))
+(def extensions-read-only #js[theme
+                              highlight/defaultHighlightStyle
+                              (view/drawSelection)
+                              (.. EditorState -allowMultipleSelections (of true))
+                              cm-clj/default-extensions
+                              (.. EditorView -editable (of false))])
 
-(defn editor [source {:keys [eval?]}]
-  (r/with-let [!view (r/atom nil)
-               eval-result (rf/subscribe [::subs/eval-results])
-               initial-eval (when eval? (prepl/eval-string source))
-               mount! (fn [el]
-                        (when el
-                          (reset! !view (new EditorView
-                                             (j/obj :state
-                                                    (test-utils/make-state
-                                                      (cond-> #js [extensions]
-                                                              eval? (.concat #js [(prepl/extension {:modifier "Alt"})]))
-                                                      source)
-                                                    :parent el)))))]
-              (let [{:keys [val]} (first @eval-result)
-                    output (cljs.tools.reader.edn/read-string val)]
-                [:div
-                 [:div {:class "rounded-md mb-0 text-sm monospace overflow-auto relative border shadow-lg bg-white"
-                        :ref   mount!
-                        :style {:max-height 410}}]
-                 (when eval?
-                   [:div.mt-3.mv-4.pl-6 {:style {:white-space "pre-wrap" :font-family "var(--code-font)"}}
-                    (prn-str output)])])
-              (finally
-                (j/call @!view :destroy))))
+(defn editor []
+  (let [!mount (fn [comp]
+                 (let [!view (EditorView. #js {:state    (.create EditorState #js {:doc        (str '(+ 1 2))
+                                                                                   :extensions extensions})
+                                               :parent   (rdom/dom-node comp)
+                                               :dispatch (fn [tx] (rf/dispatch-sync [::events/code-mirror-tx tx]))})]
+                   (rf/dispatch [::events/set-code-mirror-view !view])))]
+    [:div
+     [:div {:ref !mount}]]))
 
+(defn result-view [{:keys [val input]}]
+  (let [!mount (fn [comp]
+                 (EditorView. #js {:state  (.create EditorState #js {:doc        (str input " => " val)
+                                                                     :extensions extensions-read-only})
+                                   :parent (rdom/dom-node comp)}))]
+    [:div
+     [:div {:ref !mount}]]))
 
-(defn samples []
-  (into [:<>]
-        (for [source ["(+ 1 2 3)"]]
-          [editor source {:eval? true}])))
+(defn result-box []
+  (let [results (rf/subscribe [::subs/latest-result])]
+    (fn []
+      (when @results [result-view @results]))))
+
+(defn page []
+  [:div {:class "wrap"}
+   [:main
+    [:input-view {:class "bg-grey"}
+     [:h1 "Input"]
+     [:div {:class "code-wrapper"}
+      [:div {:class "code-box"}
+       [editor]]]]
+    [:result-view
+     [:h1 "Result"]
+     [:div {:class "code-wrapper"}
+      [:div {:class "code-box"}
+       [result-box]]]]]])
 
 (defn linux? []
   (some? (re-find #"(Linux)|(X11)" js/navigator.userAgent)))
@@ -149,7 +160,7 @@
                          [:td.px-3.py-1.align-top]])]))))])
 
 (defn ^:dev/after-load render []
-  (rdom/render [samples] (js/document.getElementById "editor"))
+  (rdom/render [page] (js/document.getElementById "editor"))
 
   (.. (js/document.querySelectorAll "[clojure-mode]")
       (forEach #(when-not (.-firstElementChild %)

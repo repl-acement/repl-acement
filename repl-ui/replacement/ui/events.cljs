@@ -132,11 +132,10 @@
   ::eval-result
   (fn [db [_ {:keys [form val] :as eval-result}]]
     (prn :eval-result eval-result)
-    (when-let [result-fn (:result-fn db)]
-      (result-fn (safe-read val)))
     (if (= form "*clojure-version*")
       (assoc db :clojure-version val)
-      (assoc db :eval-results (conj (:eval-results db) eval-result)))))
+      (assoc db :latest-result eval-result
+                :eval-results (conj (:eval-results db) eval-result)))))
 
 (reg-event-fx
   ::show-times
@@ -308,10 +307,28 @@
   (fn [db _]
     (assoc db ::other-visibility (not (::other-visibility db)))))
 
+(reg-fx
+  ::code-mirror-update-view
+  (fn [[code-mirror-view tx]]
+    (.update code-mirror-view #js [tx])))
+
+(reg-event-fx
+  ::code-mirror-tx
+  (fn [{:keys [db]} [_ tx]]
+    (let [{:keys [code-mirror-view]} db]
+      {:db                       (assoc db :tx tx)
+       ::code-mirror-update-view [code-mirror-view tx]})))
+
 (reg-event-db
-  ::code-mirror
-  (fn [db [_ code-mirror]]
-    (assoc db :code-mirror code-mirror)))
+  ::set-code-mirror-view
+  (fn [db [_ view]]
+    (assoc db :code-mirror-view view)))
+
+(reg-event-db
+  ::set-result-code-mirror-view
+  (fn [db [_ view]]
+    (prn :view view)
+    (assoc db :result-code-mirror-view view)))
 
 (reg-event-db
   ::other-user-code-mirror
