@@ -211,7 +211,6 @@
   ;; need to test loading stuff that is not on the CLASSPATH but requires
   ;; stuff that is on the CLASSPATH eg nses from the DB
 
-
   ;; DONE
 
   ;; Obtain data from nses on the CLASSPATH

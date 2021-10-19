@@ -98,56 +98,7 @@
      [:div.bg-alt.pb-12.px-6.pt-12.mt-6
       [:div.flex.flex-col-reverse.md:flex-row
        [:div.flex-shrink-0.md:px-6.mt-12.md:mt-0 {:class "md:w-1/2"}
-        [:div#editor]]
-       [:div.flex-shrink-0.md:px-6.sans-serif {:class "md:w-1/2"}
-        [:ul.text-lg
-         [:li.mt-4.flex
-          [:span.mr-2 "🥤"]
-          [:div.flex-auto.overflow-x-auto
-           [:span.font-bold "Slurping & 🤮 Barfing"]
-           [:table.w-full.md:max-w-sm.text-sm
-            [:tbody
-             [:tr.align-top
-              [:td.py-1 "forward"]
-              [:td.py-1.text-right.whitespace-nowrap
-               [:span.kbd.ctrl "Ctrl"] "+" [:span.kbd "←"] "/" [:span.kbd "→"]]
-              [:td.py-1.text-right.whitespace-nowrap
-               [:span.mx-1 "or"] [:span.kbd.mod "Mod"] "+" [:span.kbd "⇧"] "+" [:span.kbd "j"] "/" [:span.kbd "k"]]]
-             [:tr.border-t
-              [:td.py-1.pr-12 "backward"]
-              [:td.py-1.text-right.whitespace-nowrap
-               [:span.kbd.ctrl "Ctrl"] "+" [:span.kbd.alt "Alt"] "+" [:span.kbd "←"] "/" [:span.kbd "→"]]
-              [:td]]]]]]
-         [:li.mt-4.flex
-          [:span.mr-2 "💗"]
-          [:div.flex-auto.overflow-x-auto
-           [:span.font-bold "Semantic Selections"]
-           [:table.w-full.md:max-w-sm.text-sm
-            [:tbody
-             [:tr
-              [:td.py-1 "Expand / Contract"]
-              [:td.py-1.text-right.whitespace-nowrap
-               [:span.kbd.alt "Alt"] "+" [:span.kbd "↑"] "/" [:span.kbd "↓"]]
-              [:td.py-1.text-right.whitespace-nowrap
-               [:span.mx-1 "or"] [:span.kbd.mod "Mod"] "+" [:span.kbd "1"] "/" [:span.kbd "2"]]]]]]]
-         [:li.mt-4.flex
-          [:span.mr-2 "🧙"]
-          [:div.flex-auto
-           [:span.font-bold "Evaluation"]
-           [:table.w-full.md:max-w-sm.text-sm
-            [:tbody
-             [:tr
-              [:td.py-1.pr-12 "At Cursor"]
-              [:td.py-1.text-right
-               [:span.kbd.alt "Alt"] "+" [:span.kbd "⏎"]]]
-             [:tr.border-t
-              [:td.py-1.pr-12 "Top-level form"]
-              [:td.py-1.text-right
-               [:span.kbd.alt "Alt"] "+" [:span.kbd "⇧"] "+" [:span.kbd "⏎"]]]
-             [:tr.border-t
-              [:td.py-1.pr-12 "Cell"]
-              [:td.py-1.text-right
-               [:span.kbd.mod "Mod"] "+" [:span.kbd "⏎"]]]]]]]]]]]
+        [:div#editor]]]]
      [:script {:src "js/main.js"}]]))
 
 (defroutes ring-routes

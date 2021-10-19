@@ -319,10 +319,82 @@
       {:db                       (assoc db :tx tx)
        ::code-mirror-update-view [code-mirror-view tx]})))
 
+(reg-event-fx
+  ::fn-name-tx
+  (fn [{:keys [db]} [_ tx]]
+    (let [{:keys [fn-name-cm]} db]
+      {:db                       (assoc db :tx tx)
+       ::code-mirror-update-view [fn-name-cm tx]})))
+
+(reg-event-fx
+  ::fn-doc-tx
+  (fn [{:keys [db]} [_ tx]]
+    (let [{:keys [fn-doc-cm]} db]
+      {:db                       (assoc db :tx tx)
+       ::code-mirror-update-view [fn-doc-cm tx]})))
+
+(reg-event-fx
+  ::fn-attrs-tx
+  (fn [{:keys [db]} [_ tx]]
+    (let [{:keys [fn-attrs-cm]} db]
+      {:db                       (assoc db :tx tx)
+       ::code-mirror-update-view [fn-attrs-cm tx]})))
+
+(reg-event-fx
+  ::fn-args-tx
+  (fn [{:keys [db]} [_ tx]]
+    (let [{:keys [fn-args-cm]} db]
+      {:db                       (assoc db :tx tx)
+       ::code-mirror-update-view [fn-args-cm tx]})))
+
+(reg-event-fx
+  ::fn-pp-tx
+  (fn [{:keys [db]} [_ tx]]
+    (let [{:keys [fn-pp-cm]} db]
+      {:db                       (assoc db :tx tx)
+       ::code-mirror-update-view [fn-pp-cm tx]})))
+
+(reg-event-fx
+  ::fn-body-tx
+  (fn [{:keys [db]} [_ tx]]
+    (let [{:keys [fn-body-cm]} db]
+      {:db                       (assoc db :tx tx)
+       ::code-mirror-update-view [fn-body-cm tx]})))
+
 (reg-event-db
   ::set-code-mirror-view
   (fn [db [_ view]]
     (assoc db :code-mirror-view view)))
+
+(reg-event-db
+  ::set-fn-name-cm
+  (fn [db [_ view]]
+    (assoc db :fn-name-cm view)))
+
+(reg-event-db
+  ::set-fn-doc-cm
+  (fn [db [_ view]]
+    (assoc db :fn-doc-cm view)))
+
+(reg-event-db
+  ::set-fn-attrs-cm
+  (fn [db [_ view]]
+    (assoc db :fn-attrs-cm view)))
+
+(reg-event-db
+  ::set-fn-args-cm
+  (fn [db [_ view]]
+    (assoc db :fn-args-cm view)))
+
+(reg-event-db
+  ::set-fn-pp-cm
+  (fn [db [_ view]]
+    (assoc db :fn-pp-cm view)))
+
+(reg-event-db
+  ::set-fn-body-cm
+  (fn [db [_ view]]
+    (assoc db :fn-body-cm view)))
 
 (reg-event-db
   ::set-result-code-mirror-view

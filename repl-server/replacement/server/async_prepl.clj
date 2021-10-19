@@ -168,7 +168,7 @@
      :server new-server
      :client (prepl-rw (:port new-server))}))
 
-(def repl-requires
+(def ^:private repl-requires
   ["(require '[clojure.repl :refer [source apropos dir pst doc find-doc]])"
    "(require '[clojure.java.javadoc :refer [javadoc]])"
    "(require '[clojure.pprint :refer [pp pprint]])"

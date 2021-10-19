@@ -67,13 +67,66 @@
                               cm-clj/default-extensions
                               (.. EditorView -editable (of false))])
 
+(defn editor-view
+  [component initial-document event-name]
+  (EditorView. #js {:state    (.create EditorState #js {:doc        initial-document
+                                                        :extensions extensions})
+                    :parent   (rdom/dom-node component)
+                    :dispatch (fn [tx] (rf/dispatch-sync [event-name tx]))}))
+
 (defn editor []
   (let [!mount (fn [comp]
-                 (let [!view (EditorView. #js {:state    (.create EditorState #js {:doc        (str '(+ 1 2))
-                                                                                   :extensions extensions})
-                                               :parent   (rdom/dom-node comp)
-                                               :dispatch (fn [tx] (rf/dispatch-sync [::events/code-mirror-tx tx]))})]
+                 (let [doc   (str '(+ 1 2))
+                       !view (editor-view comp doc ::events/code-mirror-tx)]
                    (rf/dispatch [::events/set-code-mirror-view !view])))]
+    [:div
+     [:div {:ref !mount}]]))
+
+(defn form-fn-name []
+  (let [!mount (fn [comp]
+                 (let [doc   (name (gensym "my-fn-"))
+                       !view (editor-view comp doc ::events/fn-name-tx)]
+                   (rf/dispatch [::events/set-fn-name-cm !view])))]
+    [:div
+     [:div {:ref !mount}]]))
+
+(defn form-fn-doc []
+  (let [!mount (fn [comp]
+                 (let [doc   "flips the sprocket on the gear flange"
+                       !view (editor-view comp doc ::events/fn-doc-tx)]
+                   (rf/dispatch [::events/set-fn-doc-cm !view])))]
+    [:div
+     [:div {:ref !mount}]]))
+
+(defn form-fn-attrs []
+  (let [!mount (fn [comp]
+                 (let [doc   "{:since \"0.0.1\"}"
+                       !view (editor-view comp doc ::events/fn-attrs-tx)]
+                   (rf/dispatch [::events/set-fn-attrs-cm !view])))]
+    [:div
+     [:div {:ref !mount}]]))
+
+(defn form-fn-args []
+  (let [!mount (fn [comp]
+                 (let [doc   "[x]"
+                       !view (editor-view comp doc ::events/fn-args-tx)]
+                   (rf/dispatch [::events/set-fn-args-cm !view])))]
+    [:div
+     [:div {:ref !mount}]]))
+
+(defn form-fn-pp []
+  (let [!mount (fn [comp]
+                 (let [doc   "{:pre [(int? x)]}"
+                       !view (editor-view comp doc ::events/fn-pp-tx)]
+                   (rf/dispatch [::events/set-fn-pp-cm !view])))]
+    [:div
+     [:div {:ref !mount}]]))
+
+(defn form-fn-body []
+  (let [!mount (fn [comp]
+                 (let [doc   "(inc x)"
+                       !view (editor-view comp doc ::events/fn-body-tx)]
+                   (rf/dispatch [::events/set-fn-body-cm !view])))]
     [:div
      [:div {:ref !mount}]]))
 
@@ -93,13 +146,52 @@
 (defn page []
   [:div {:class "wrap"}
    [:main
+    [:table.w-full.md:max-w-sm.text-sm
+     [:tbody
+      [:tr.align-center
+       [:td.py-1 "Function"]
+       [:td.py-1.pr-12 [:div {:class "code-wrapper"}
+                        [:div {:class "code-box"}
+                         [form-fn-name]]]]]
+      [:tr.border-t [:td]]
+      [:tr.align-center
+       [:td.py-1 "Doc string"]
+       [:td.py-1.pr-12 [:div {:class "code-wrapper"}
+                        [:div {:class "code-box"}
+                         [form-fn-doc]]]]]
+      [:tr.border-t [:td]]
+      [:tr.align-center
+       [:td.py-1 "Attributes"]
+       [:td.py-1.pr-12 [:div {:class "code-wrapper"}
+                        [:div {:class "code-box"}
+                         [form-fn-attrs]]]]]
+      [:tr.border-t [:td]]
+      [:tr.align-center
+       [:td.py-1 "Arguments"]
+       [:td.py-1.pr-12 [:div {:class "code-wrapper"}
+                        [:div {:class "code-box"}
+                         [form-fn-args]]]]]
+      [:tr.border-t [:td]]
+      [:tr.align-center
+       [:td.py-1 "Pre/Post"]
+       [:td.py-1.pr-12 [:div {:class "code-wrapper"}
+                        [:div {:class "code-box"}
+                         [form-fn-pp]]]]]
+      [:tr.border-t [:td]]
+      [:tr.align-center
+       [:td.py-1 "Body"]
+       [:td.py-1.pr-12 [:div {:class "code-wrapper"}
+                        [:div {:class "code-box"}
+                         [form-fn-body]]]]]]]
+
+    ;; FIX ... multi-arity
     [:input-view {:class "bg-grey"}
-     [:h1 "Input"]
+     [:h3 "Editable form"]
      [:div {:class "code-wrapper"}
       [:div {:class "code-box"}
        [editor]]]]
     [:result-view
-     [:h1 "Result"]
+     [:h3 "REPL Output"]
      [:div {:class "code-wrapper"}
       [:div {:class "code-box"}
        [result-box]]]]]])
