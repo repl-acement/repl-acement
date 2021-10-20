@@ -131,4 +131,33 @@
   (fn [db]
     (:key-bindings db)))
 
+(reg-sub
+  ::fn-name
+  (fn [db]
+    (:fn-name db)))
+
+(reg-sub
+  ::fn-doc
+  (fn [db]
+    (:fn-doc db)))
+
+(reg-sub
+  ::fn-attrs
+  (fn [db]
+    (:fn-attrs db)))
+
+(reg-sub
+  ::fn-args
+  (fn [db]
+    (:fn-args db)))
+
+(reg-sub
+  ::fn-pp
+  (fn [db]
+    (:fn-pp db)))
+
+(reg-sub
+  ::fn-body
+  (fn [db]
+    (:fn-body db)))
 

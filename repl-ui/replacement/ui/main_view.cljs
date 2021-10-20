@@ -72,7 +72,8 @@
   (EditorView. #js {:state    (.create EditorState #js {:doc        initial-document
                                                         :extensions extensions})
                     :parent   (rdom/dom-node component)
-                    :dispatch (fn [tx] (rf/dispatch-sync [event-name tx]))}))
+                    :dispatch (fn [tx]
+                                (rf/dispatch-sync [event-name tx]))}))
 
 (defn editor []
   (let [!mount (fn [comp]
@@ -143,6 +144,28 @@
     (fn []
       (when @results [result-view @results]))))
 
+(defn editable-form-view [some-text]
+  (let [!mount (fn [comp]
+                 (EditorView. #js {:state  (.create EditorState #js {:doc        some-text
+                                                                     :extensions extensions-read-only})
+                                   :parent (rdom/dom-node comp)}))]
+    [:div {:ref !mount}]))
+
+(defn editable-form-box []
+  (let [body (rf/subscribe [::subs/fn-body])]
+    (fn []
+      (when @body [editable-form-view @body]))))
+
+(defn editable
+  []
+  [:div {:class "wrap"}
+   [:main                                                   ;; FIX ... multi-arity
+    [:input-view {:class "bg-grey"}
+     [:h3 "Editable Form"]
+     [:div {:class "code-wrapper"}
+      [:div {:class "code-box"}
+       [editable-form-box]]]]]])
+
 (defn page []
   [:div {:class "wrap"}
    [:main
@@ -186,7 +209,7 @@
 
     ;; FIX ... multi-arity
     [:input-view {:class "bg-grey"}
-     [:h3 "Editable form"]
+     [:h3 "Editor"]
      [:div {:class "code-wrapper"}
       [:div {:class "code-box"}
        [editor]]]]
@@ -253,6 +276,8 @@
 
 (defn ^:dev/after-load render []
   (rdom/render [page] (js/document.getElementById "editor"))
+
+  (rdom/render [editable] (js/document.getElementById "editable"))
 
   (.. (js/document.querySelectorAll "[clojure-mode]")
       (forEach #(when-not (.-firstElementChild %)

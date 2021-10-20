@@ -307,6 +307,10 @@
   (fn [db _]
     (assoc db ::other-visibility (not (::other-visibility db)))))
 
+(defn extract-tx-text
+  [^Transaction tx]
+  (-> (.toJSON (.-newDoc tx)) js->cljs first))
+
 (reg-fx
   ::code-mirror-update-view
   (fn [[code-mirror-view tx]]
@@ -323,42 +327,42 @@
   ::fn-name-tx
   (fn [{:keys [db]} [_ tx]]
     (let [{:keys [fn-name-cm]} db]
-      {:db                       (assoc db :tx tx)
+      {:db                       (assoc db :tx tx :fn-name (extract-tx-text tx))
        ::code-mirror-update-view [fn-name-cm tx]})))
 
 (reg-event-fx
   ::fn-doc-tx
   (fn [{:keys [db]} [_ tx]]
     (let [{:keys [fn-doc-cm]} db]
-      {:db                       (assoc db :tx tx)
+      {:db                       (assoc db :tx tx :fn-doc (extract-tx-text tx))
        ::code-mirror-update-view [fn-doc-cm tx]})))
 
 (reg-event-fx
   ::fn-attrs-tx
   (fn [{:keys [db]} [_ tx]]
     (let [{:keys [fn-attrs-cm]} db]
-      {:db                       (assoc db :tx tx)
+      {:db                       (assoc db :tx tx :fn-attrs (extract-tx-text tx))
        ::code-mirror-update-view [fn-attrs-cm tx]})))
 
 (reg-event-fx
   ::fn-args-tx
   (fn [{:keys [db]} [_ tx]]
     (let [{:keys [fn-args-cm]} db]
-      {:db                       (assoc db :tx tx)
+      {:db                       (assoc db :tx tx :fn-args (extract-tx-text tx))
        ::code-mirror-update-view [fn-args-cm tx]})))
 
 (reg-event-fx
   ::fn-pp-tx
   (fn [{:keys [db]} [_ tx]]
     (let [{:keys [fn-pp-cm]} db]
-      {:db                       (assoc db :tx tx)
+      {:db                       (assoc db :tx tx :fn-pp (extract-tx-text tx))
        ::code-mirror-update-view [fn-pp-cm tx]})))
 
 (reg-event-fx
   ::fn-body-tx
   (fn [{:keys [db]} [_ tx]]
     (let [{:keys [fn-body-cm]} db]
-      {:db                       (assoc db :tx tx)
+      {:db                       (assoc db :tx tx :fn-body (extract-tx-text tx))
        ::code-mirror-update-view [fn-body-cm tx]})))
 
 (reg-event-db
@@ -399,7 +403,6 @@
 (reg-event-db
   ::set-result-code-mirror-view
   (fn [db [_ view]]
-    (prn :view view)
     (assoc db :result-code-mirror-view view)))
 
 (reg-event-db
