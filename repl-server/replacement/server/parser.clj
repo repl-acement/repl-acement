@@ -1,31 +1,54 @@
 (ns replacement.server.parser
-  (:require [clojure.spec.alpha :as spec]
+  (:require [clojure.spec.alpha :as s]
             [clojure.core.specs.alpha :as core-specs]
+            [editscript.core :as e]
             [replacement.server.async-prepl :as ap]))
 
-(spec/def ::ns-form
-  (spec/cat
-    :ns-sym (spec/and symbol? #(= 'ns %))
+(s/def ::ns-form
+  (s/cat
+    :ns-sym (s/and symbol? #(= 'ns %))
     :ns-args ::core-specs/ns-form))
 
-(spec/def ::defn
-  (spec/cat
-    :defn-type (spec/and symbol? #(or (= 'defn %)
-                                      (= 'defn- %)))
+(s/def ::defn
+  (s/cat
+    :defn-type (s/and symbol? #(or (= 'defn %)
+                                   (= 'defn- %)))
     :defn-args ::core-specs/defn-args))
 
-(spec/def ::def
-  (spec/cat
-    :def (spec/and symbol? #(= 'def %))
+(s/def ::def
+  (s/cat
+    :def (s/and symbol? #(= 'def %))
     :var-name symbol?
-    :docstring (spec/? string?)
-    :init-expr (spec/? any?)))
+    :docstring (s/? string?)
+    :init-expr (s/? any?)))
 
-(spec/def ::form
-  (spec/or :ns ::ns-form
-           :def ::def
-           :defn ::defn
-           :expr list?))
+(s/def ::form
+  (s/or :ns ::ns-form
+        :def ::def
+        :defn ::defn
+        :expr list?))
+
+
+(s/def ::core-specs/seq-binding-form
+  (s/and vector?
+         (s/conformer identity vec)
+         (s/cat :elems (s/* ::core-specs/binding-form)
+                :rest (s/? (s/cat :amp #{'&} :form ::core-specs/binding-form))
+                :as (s/? (s/cat :as #{:as} :sym ::core-specs/local-name)))))
+
+(defn arg-list-unformer [a]
+  (prn :a a)
+  (vec
+    (if (and (coll? (last a)) (= '& (first (last a))))
+      (concat (drop-last a) (last a))
+      a)))
+
+(s/def ::core-specs/param-list
+  (s/and
+    vector?
+    (s/conformer identity arg-list-unformer)
+    (s/cat :args (s/* ::core-specs/binding-form)
+           :varargs (s/? (s/cat :amp #{'&} :form ::core-specs/binding-form)))))
 
 (defn add-metadata
   [ns-name var-name]
@@ -64,7 +87,7 @@
   (let [forms (->> "repl-server/replacement/server/async_prepl.clj"
                    slurp
                    ap/message->forms
-                   (map #(spec/conform ::form %)))]
+                   (map #(s/conform ::form %)))]
     (enrich (-> forms first last)
             (rest forms)))
 

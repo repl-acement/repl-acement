@@ -2,13 +2,16 @@
   (:require
     [cljs.tools.reader.edn :as rdr]
     [clojure.core.async]
+    [clojure.spec.alpha :as s]
     [clojure.string :as string]
     [re-frame.core :as re-frame :refer [reg-event-db reg-event-fx reg-fx]]
+    [replacement.ui.fn-specs :as fn-specs]
+    [replacement.ui.core-specs :as core-specs]
     [replacement.ui.helpers :refer [js->cljs]]
     [replacement.ui.ws :as ws]
     [replacement.specs.messages :as message-specs]
     [replacement.specs.user :as user-specs]
-    [taoensso.sente :as sente :refer []]))
+    [taoensso.sente :as sente]))
 
 (def system-user (user-specs/->user "system" "0"))
 
@@ -40,7 +43,7 @@
 (reg-event-db
   ::initialize-db
   (fn [_ _]
-    (merge {::name             "replacement"
+    (merge {::name             "repl-acement"
             ::other-visibility true}
            os-data)))
 
@@ -309,96 +312,95 @@
 
 (defn extract-tx-text
   [^Transaction tx]
-  (-> (.toJSON (.-newDoc tx)) js->cljs first))
+  (->> (.toJSON (.-newDoc tx)) js->cljs (apply str)))
 
 (reg-fx
   ::code-mirror-update-view
-  (fn [[code-mirror-view tx]]
-    (.update code-mirror-view #js [tx])))
+  (fn [[{:keys [cm]} tx]]
+    (.update cm #js [tx])))
+
+(defn fn-tx-event->cm-name
+  [event-name]
+  (-> (name event-name) (string/replace #"-tx$" "-cm") keyword))
+
+(defn fn-set-event->cm-name
+  [event-name]
+  (-> (name event-name) (string/replace #"^set-" "") keyword))
+
+(defn fn-part->cm-name
+  [part-name]
+  (-> (name part-name) (string/replace #"$" "-cm") keyword))
+
+(defn fn-tx-event->part-name
+  [event-name]
+  (-> (name event-name) (string/replace #"-tx$" "") keyword))
+
 
 (reg-event-fx
   ::code-mirror-tx
   (fn [{:keys [db]} [_ tx]]
     (let [{:keys [code-mirror-view]} db]
+      (prn :tx tx)
       {:db                       (assoc db :tx tx)
        ::code-mirror-update-view [code-mirror-view tx]})))
 
-(reg-event-fx
-  ::fn-name-tx
-  (fn [{:keys [db]} [_ tx]]
-    (let [{:keys [fn-name-cm]} db]
-      {:db                       (assoc db :tx tx :fn-name (extract-tx-text tx))
-       ::code-mirror-update-view [fn-name-cm tx]})))
+(def fn-parts-list [:fn-name :fn-doc :fn-attrs :fn-args :fn-pp :fn-body])
+
+(reg-fx
+  ::fn-part-edit
+  (fn [[part-cm tx]]
+    (let [{:keys [cm]} part-cm]
+      (.update cm #js [tx]))
+    (re-frame/dispatch [::set-form-part])))
+
+(defn fn-part-tx
+  [{:keys [db]} [event-name tx]]
+  (let [part-name (fn-tx-event->part-name event-name)
+        cm-name   (fn-tx-event->cm-name event-name)
+        cm-map    (get db cm-name)]
+    {:db            (assoc db :tx tx part-name (extract-tx-text tx))
+     ::fn-part-edit [cm-map tx]}))
+
+(reg-event-fx ::fn-name-tx fn-part-tx)
+(reg-event-fx ::fn-doc-tx fn-part-tx)
+(reg-event-fx ::fn-attrs-tx fn-part-tx)
+(reg-event-fx ::fn-args-tx fn-part-tx)
+(reg-event-fx ::fn-pp-tx fn-part-tx)
+(reg-event-fx ::fn-body-tx fn-part-tx)
+
+(reg-fx
+  ::fn-whole-edit
+  (fn [[part-cm tx]]
+    (let [{:keys [cm]} part-cm]
+      (.update cm #js [tx]))
+    (re-frame/dispatch [::set-whole-form (extract-tx-text tx)])))
 
 (reg-event-fx
-  ::fn-doc-tx
-  (fn [{:keys [db]} [_ tx]]
-    (let [{:keys [fn-doc-cm]} db]
-      {:db                       (assoc db :tx tx :fn-doc (extract-tx-text tx))
-       ::code-mirror-update-view [fn-doc-cm tx]})))
+  ::fn-whole-form-tx
+  (fn [{:keys [db]} [event-name tx]]
+    (let [cm-name (fn-tx-event->cm-name event-name)
+          cm-map  (get db cm-name)]
+      {:db             (assoc db :tx tx)
+       ::fn-whole-edit [cm-map tx]})))
 
-(reg-event-fx
-  ::fn-attrs-tx
-  (fn [{:keys [db]} [_ tx]]
-    (let [{:keys [fn-attrs-cm]} db]
-      {:db                       (assoc db :tx tx :fn-attrs (extract-tx-text tx))
-       ::code-mirror-update-view [fn-attrs-cm tx]})))
-
-(reg-event-fx
-  ::fn-args-tx
-  (fn [{:keys [db]} [_ tx]]
-    (let [{:keys [fn-args-cm]} db]
-      {:db                       (assoc db :tx tx :fn-args (extract-tx-text tx))
-       ::code-mirror-update-view [fn-args-cm tx]})))
-
-(reg-event-fx
-  ::fn-pp-tx
-  (fn [{:keys [db]} [_ tx]]
-    (let [{:keys [fn-pp-cm]} db]
-      {:db                       (assoc db :tx tx :fn-pp (extract-tx-text tx))
-       ::code-mirror-update-view [fn-pp-cm tx]})))
-
-(reg-event-fx
-  ::fn-body-tx
-  (fn [{:keys [db]} [_ tx]]
-    (let [{:keys [fn-body-cm]} db]
-      {:db                       (assoc db :tx tx :fn-body (extract-tx-text tx))
-       ::code-mirror-update-view [fn-body-cm tx]})))
 
 (reg-event-db
   ::set-code-mirror-view
   (fn [db [_ view]]
     (assoc db :code-mirror-view view)))
 
-(reg-event-db
-  ::set-fn-name-cm
-  (fn [db [_ view]]
-    (assoc db :fn-name-cm view)))
+(defn set-cm-name
+  [db [event-name cm]]
+  (let [kw-name (fn-set-event->cm-name event-name)]
+    (assoc db kw-name {:cm cm :name kw-name})))
 
-(reg-event-db
-  ::set-fn-doc-cm
-  (fn [db [_ view]]
-    (assoc db :fn-doc-cm view)))
-
-(reg-event-db
-  ::set-fn-attrs-cm
-  (fn [db [_ view]]
-    (assoc db :fn-attrs-cm view)))
-
-(reg-event-db
-  ::set-fn-args-cm
-  (fn [db [_ view]]
-    (assoc db :fn-args-cm view)))
-
-(reg-event-db
-  ::set-fn-pp-cm
-  (fn [db [_ view]]
-    (assoc db :fn-pp-cm view)))
-
-(reg-event-db
-  ::set-fn-body-cm
-  (fn [db [_ view]]
-    (assoc db :fn-body-cm view)))
+(reg-event-db ::set-fn-name-cm set-cm-name)
+(reg-event-db ::set-fn-doc-cm set-cm-name)
+(reg-event-db ::set-fn-attrs-cm set-cm-name)
+(reg-event-db ::set-fn-args-cm set-cm-name)
+(reg-event-db ::set-fn-pp-cm set-cm-name)
+(reg-event-db ::set-fn-body-cm set-cm-name)
+(reg-event-db ::set-fn-whole-form-cm set-cm-name)
 
 (reg-event-db
   ::set-result-code-mirror-view
@@ -413,6 +415,101 @@
           cm-entry   (assoc {} user-key code-mirror)
           cm-update  (merge cm-entries cm-entry)]
       (assoc db :other-user-code-mirrors cm-update))))
+
+;; TODO - multi-arity
+(defn split-defn-args
+  [conformed-defn-args]
+  (let [{:keys [fn-tail]} conformed-defn-args
+        single-arity? (= :arity-1 (first fn-tail))
+        arity1-data   (when single-arity?
+                        (let [params+body       (-> fn-tail last)
+                              params+body-value (s/unform ::fn-specs/params+body params+body)
+                              params-value      (first params+body-value)
+                              pp?               (map? (second params+body-value))
+                              pp                (when pp? (second params+body-value))
+                              body-value        (last params+body-value)]
+                          {:params-value params-value
+                           :body         body-value
+                           :pre-post-map pp}))]
+    (merge conformed-defn-args
+           {:split-data {:single-arity? single-arity?
+                         :arity-1       arity1-data}})))
+
+(reg-fx
+  ::update-cms
+  (fn [changes]
+    (doall (reduce (fn [_ {:keys [cm tx]}]
+                     (.update cm #js [tx]))
+                   [] changes))))
+
+(reg-event-fx
+  ::fn-parts-update-cms
+  (fn [{:keys [db]} [_ updated-fn-properties]]
+    (let [fn-parts         (keys updated-fn-properties)
+          cms-with-changes (reduce (fn [cms fn-part]
+                                     (let [cm-name    (fn-part->cm-name fn-part)
+                                           cm         (get-in db [cm-name :cm])
+                                           cm-state   (-> cm .-state)
+                                           doc-length (-> cm-state .-doc .-length)
+                                           new-text   (str (get updated-fn-properties fn-part))
+                                           tx         ^Transaction (.update cm-state (clj->js {:changes {:from 0 :to doc-length :insert new-text}}))]
+                                       (conj cms {:cm cm :tx tx})))
+                                   [] fn-parts)]
+      ;; NOTE: could be optimized to update only the changed ones
+      {:db          db
+       ::update-cms cms-with-changes})))
+
+
+(reg-fx
+  ::fn-whole-update
+  (fn [[whole-form-cm whole-text]]
+    (let [cm-state   (-> whole-form-cm .-state)
+          doc-length (-> cm-state .-doc .-length)
+          tx         ^Transaction (.update cm-state (clj->js {:changes {:from 0 :to doc-length :insert whole-text}}))]
+      (.update whole-form-cm #js [tx]))))
+
+;; Add definition type (defn- or defn)
+(reg-event-fx
+  ::set-form-part
+  (fn [{:keys [db]} [_]]
+    (let [text (apply str (reduce
+                            (fn [text k]
+                              (conj text (if (= k :fn-doc)  ;; urgh ... ideas welcome!
+                                           (str "\"" (get db k) "\"")
+                                           (str " " (get db k) " "))))
+                            [] fn-parts-list))
+          whole-cm (get-in db [:fn-whole-form-cm :cm])]
+      {:db               db
+       ::fn-whole-update [whole-cm (str "(defn " text ")")]})))
+
+(reg-fx
+  ::fn-parts-update
+  (fn [fn-parts-properties]
+    (re-frame/dispatch [::fn-parts-update-cms fn-parts-properties])))
+
+(reg-event-fx
+  ::set-whole-form
+  (fn [{:keys [db]} [_ whole-form-text]]
+    (let [fn-form            (rdr/read-string whole-form-text)
+          conformed          (s/conform ::core-specs/defn fn-form)
+          fn-data            (split-defn-args (:defn-args conformed))
+          arity-1-data       (get-in fn-data [:split-data :arity-1])
+          unformed           (s/unform ::core-specs/defn conformed)
+          fn-properties      {:fn-text      whole-form-text
+                              :fn-form      fn-form
+                              :fn-conformed conformed
+                              :fn-data      fn-data
+                              :fn-unformed  unformed
+                              :fn-name      (:fn-name fn-data)
+                              :fn-doc       (:docstring fn-data)
+                              :fn-attrs     (:meta fn-data)}
+          arity-1-properties {:fn-pp   (:pre-post-map arity-1-data)
+                              :fn-args (:params-value arity-1-data)
+                              :fn-body (:body arity-1-data)}
+          parts-properties   (merge (select-keys fn-properties fn-parts-list)
+                                    (select-keys arity-1-properties fn-parts-list))]
+      {:db               (merge db fn-properties arity-1-properties)
+       ::fn-parts-update parts-properties})))
 
 (reg-event-db
   ::users

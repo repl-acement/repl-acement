@@ -1,4 +1,4 @@
-{:deps   {:aliases [:dev :repl-ui]}
+{:deps   {:aliases [:cljs :repl-ui]}
  :builds {:repl-ui {:compiler-options {:output-feature-set :es8}
                     :target           :browser
                     :output-dir       "resources/public/js"
