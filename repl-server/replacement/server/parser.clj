@@ -50,6 +50,28 @@
     (s/cat :args (s/* ::core-specs/binding-form)
            :varargs (s/? (s/cat :amp #{'&} :form ::core-specs/binding-form)))))
 
+(defn- arity-data
+  [params+body]
+  (let [params+body-value (s/unform ::core-specs/params+body params+body)
+        params-value      (first params+body-value)
+        pp?               (map? (second params+body-value))
+        pp                (when pp? (second params+body-value))
+        body-value        (last params+body-value)]
+    {:params-value params-value
+     :body         body-value
+     :pre-post-map pp}))
+
+(defn split-defn-args
+  [conformed-defn-args]
+  (let [{:keys [fn-tail]} conformed-defn-args
+        single-arity? (= :arity-1 (first fn-tail))
+        arity-data    (if single-arity?
+                        (arity-data (-> fn-tail last))
+                        (map arity-data (-> fn-tail last :bodies)))]
+    (merge conformed-defn-args
+           {:single-arity? single-arity?
+            :arity-data    arity-data})))
+
 (defn add-metadata
   [ns-name var-name]
   (let [ns-thing (the-ns (symbol ns-name))]

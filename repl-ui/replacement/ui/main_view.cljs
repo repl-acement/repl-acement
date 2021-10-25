@@ -26,7 +26,8 @@
             [replacement.ui.events :as events]
             [replacement.ui.remote-prepl :as prepl]
             [replacement.ui.subs :as subs]
-            [cljs.tools.reader.edn :as edn]))
+            [cljs.tools.reader.edn :as edn]
+            [zprint.core :refer [zprint-file-str]]))
 
 (def theme
   (.theme EditorView
@@ -98,6 +99,8 @@
   (let [!mount (fn-editor :attrs)]
     [:div {:ref !mount}]))
 
+;; compound these into an ARITY vector
+;; can be 1 or more
 (defn form-fn-args []
   (let [!mount (fn-editor :args)]
     [:div {:ref !mount}]))
@@ -118,9 +121,10 @@
                                   "[x]"
                                   {:pre ['(nat-int? x)]}
                                   '(inc x) ")")
-                       !view (editor-view comp doc ::events/fn-whole-form-tx)]
+                       formatted  (zprint-file-str doc "::fn-whole-update")
+                       !view (editor-view comp formatted ::events/fn-whole-form-tx)]
                    (rf/dispatch [::events/set-fn-whole-form-cm !view])
-                   (rf/dispatch [::events/set-whole-form doc])))]
+                   (rf/dispatch [::events/set-whole-form formatted])))]
     [:div {:ref !mount}]))
 
 (defn result-view [{:keys [val]}]

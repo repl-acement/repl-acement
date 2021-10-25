@@ -4,6 +4,7 @@
     [clojure.core.async]
     [clojure.spec.alpha :as s]
     [clojure.string :as string]
+    [nextjournal.clojure-mode.extensions.formatting :as format]
     [re-frame.core :as re-frame :refer [reg-event-db reg-event-fx reg-fx]]
     [replacement.ui.fn-specs :as fn-specs]
     [replacement.ui.core-specs :as core-specs]
@@ -11,7 +12,8 @@
     [replacement.ui.ws :as ws]
     [replacement.specs.messages :as message-specs]
     [replacement.specs.user :as user-specs]
-    [taoensso.sente :as sente]))
+    [taoensso.sente :as sente]
+    [zprint.core :refer [zprint-file-str]]))
 
 (def system-user (user-specs/->user "system" "0"))
 
@@ -311,7 +313,7 @@
     (assoc db ::other-visibility (not (::other-visibility db)))))
 
 (defn extract-tx-text
-  [^Transaction tx]
+  [^js tx]
   (->> (.toJSON (.-newDoc tx)) js->cljs (apply str)))
 
 (reg-fx
@@ -344,13 +346,17 @@
       {:db                       (assoc db :tx tx)
        ::code-mirror-update-view [code-mirror-view tx]})))
 
-(def fn-parts-list [:fn-name :fn-doc :fn-attrs :fn-args :fn-pp :fn-body])
+(def fn-common-parts [:fn-name :fn-doc :fn-attrs])
+(def fn-arity-parts [:fn-args :fn-pp :fn-body])
+(def fn-single-arity-parts (concat fn-common-parts fn-arity-parts))
 
 (reg-fx
   ::fn-part-edit
   (fn [[part-cm tx]]
     (let [{:keys [cm]} part-cm]
-      (.update cm #js [tx]))
+      (.update cm #js [tx])
+      (let [format-tx (format/format-all (.-state cm))]
+        (.update cm #js [format-tx])))
     (re-frame/dispatch [::set-form-part])))
 
 (defn fn-part-tx
@@ -372,7 +378,9 @@
   ::fn-whole-edit
   (fn [[part-cm tx]]
     (let [{:keys [cm]} part-cm]
-      (.update cm #js [tx]))
+      (.update cm #js [tx])
+      (let [format-tx (format/format-all (.-state cm))]
+        (.update cm #js [format-tx])))
     (re-frame/dispatch [::set-whole-form (extract-tx-text tx)])))
 
 (reg-event-fx
@@ -416,30 +424,35 @@
           cm-update  (merge cm-entries cm-entry)]
       (assoc db :other-user-code-mirrors cm-update))))
 
-;; TODO - multi-arity
+(defn- arity-data
+  [params+body]
+  (let [params+body-value (s/unform ::fn-specs/params+body params+body)
+        params-value      (first params+body-value)
+        pp?               (map? (second params+body-value))
+        pp                (when pp? (second params+body-value))
+        body-value        (last params+body-value)]
+    {:params-value params-value
+     :body         body-value
+     :pre-post-map pp}))
+
 (defn split-defn-args
   [conformed-defn-args]
   (let [{:keys [fn-tail]} conformed-defn-args
         single-arity? (= :arity-1 (first fn-tail))
-        arity1-data   (when single-arity?
-                        (let [params+body       (-> fn-tail last)
-                              params+body-value (s/unform ::fn-specs/params+body params+body)
-                              params-value      (first params+body-value)
-                              pp?               (map? (second params+body-value))
-                              pp                (when pp? (second params+body-value))
-                              body-value        (last params+body-value)]
-                          {:params-value params-value
-                           :body         body-value
-                           :pre-post-map pp}))]
+        arity-data    (if single-arity?
+                        (arity-data (-> fn-tail last))
+                        (map arity-data (-> fn-tail last :bodies)))]
     (merge conformed-defn-args
-           {:split-data {:single-arity? single-arity?
-                         :arity-1       arity1-data}})))
+           {:single-arity? single-arity?
+            :arity-data    arity-data})))
 
 (reg-fx
   ::update-cms
   (fn [changes]
     (doall (reduce (fn [_ {:keys [cm tx]}]
-                     (.update cm #js [tx]))
+                     (.update cm #js [tx])
+                     (let [format-tx (format/format-all (.-state cm))]
+                       (.update cm #js [format-tx])))
                    [] changes))))
 
 (reg-event-fx
@@ -452,7 +465,7 @@
                                            cm-state   (-> cm .-state)
                                            doc-length (-> cm-state .-doc .-length)
                                            new-text   (str (get updated-fn-properties fn-part))
-                                           tx         ^Transaction (.update cm-state (clj->js {:changes {:from 0 :to doc-length :insert new-text}}))]
+                                           tx         ^js (.update cm-state (clj->js {:changes {:from 0 :to doc-length :insert new-text}}))]
                                        (conj cms {:cm cm :tx tx})))
                                    [] fn-parts)]
       ;; NOTE: could be optimized to update only the changed ones
@@ -465,27 +478,51 @@
   (fn [[whole-form-cm whole-text]]
     (let [cm-state   (-> whole-form-cm .-state)
           doc-length (-> cm-state .-doc .-length)
-          tx         ^Transaction (.update cm-state (clj->js {:changes {:from 0 :to doc-length :insert whole-text}}))]
-      (.update whole-form-cm #js [tx]))))
+          tx         ^js (.update cm-state (clj->js {:changes {:from 0 :to doc-length :insert whole-text}}))]
+      (.update whole-form-cm #js [tx])
+      (let [format-tx (format/format-all (.-state whole-form-cm))]
+        (.update whole-form-cm #js [format-tx])))))
+
+
+(comment
+  '(defn ranker
+     "improve ranking on the celestial index"
+     {:since "0.0.1"}
+     ([x]
+      {:pre [(pos-int? x)]}
+      (ranker x (inc x)))
+     ([x y]
+      {:pre [(pos-int? x)]}
+      [(inc x) (inc y)]))
+  )
+
 
 ;; Add definition type (defn- or defn)
 (reg-event-fx
   ::set-form-part
   (fn [{:keys [db]} [_]]
-    (let [text (apply str (reduce
-                            (fn [text k]
-                              (conj text (if (= k :fn-doc)  ;; urgh ... ideas welcome!
-                                           (str "\"" (get db k) "\"")
-                                           (str " " (get db k) " "))))
-                            [] fn-parts-list))
-          whole-cm (get-in db [:fn-whole-form-cm :cm])]
+    (let [text       (apply str (reduce
+                                  (fn [text k]
+                                    (conj text (if (= k :fn-doc) ;; urgh ... ideas welcome!
+                                                 (str "\"" (get db k) "\"")
+                                                 (str " " (get db k) " "))))
+                                  [] fn-single-arity-parts))
+          whole-text (str "(defn " text ")")
+          formatted  (zprint-file-str whole-text "::set-form-part")
+          whole-cm   (get-in db [:fn-whole-form-cm :cm])]
       {:db               db
-       ::fn-whole-update [whole-cm (str "(defn " text ")")]})))
+       ::fn-whole-update [whole-cm formatted]})))
 
 (reg-fx
   ::fn-parts-update
   (fn [fn-parts-properties]
     (re-frame/dispatch [::fn-parts-update-cms fn-parts-properties])))
+
+(defn- arity-data->properties
+  [arity-data]
+  {:fn-pp   (:pre-post-map arity-data)
+   :fn-args (:params-value arity-data)
+   :fn-body (:body arity-data)})
 
 (reg-event-fx
   ::set-whole-form
@@ -493,7 +530,7 @@
     (let [fn-form            (rdr/read-string whole-form-text)
           conformed          (s/conform ::core-specs/defn fn-form)
           fn-data            (split-defn-args (:defn-args conformed))
-          arity-1-data       (get-in fn-data [:split-data :arity-1])
+          arity-data         (:arity-data fn-data)
           unformed           (s/unform ::core-specs/defn conformed)
           fn-properties      {:fn-text      whole-form-text
                               :fn-form      fn-form
@@ -503,11 +540,10 @@
                               :fn-name      (:fn-name fn-data)
                               :fn-doc       (:docstring fn-data)
                               :fn-attrs     (:meta fn-data)}
-          arity-1-properties {:fn-pp   (:pre-post-map arity-1-data)
-                              :fn-args (:params-value arity-1-data)
-                              :fn-body (:body arity-1-data)}
-          parts-properties   (merge (select-keys fn-properties fn-parts-list)
-                                    (select-keys arity-1-properties fn-parts-list))]
+          arity-1-properties (arity-data->properties arity-data)
+          arity-n-properties (map arity-data->properties arity-data)
+          parts-properties   (merge (select-keys fn-properties fn-single-arity-parts)
+                                    (select-keys arity-1-properties fn-single-arity-parts))]
       {:db               (merge db fn-properties arity-1-properties)
        ::fn-parts-update parts-properties})))
 
