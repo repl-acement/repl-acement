@@ -322,20 +322,28 @@
     (.update cm #js [tx])))
 
 (defn fn-tx-event->cm-name
-  [event-name]
-  (-> (name event-name) (string/replace #"-tx$" "-cm") keyword))
+  ([event-name]
+   (fn-tx-event->cm-name event-name 0))
+  ([event-name index]
+   (-> (name event-name) (string/replace #"-tx$" (str "-cm-" index)) keyword)))
 
 (defn fn-set-event->cm-name
-  [event-name]
-  (-> (name event-name) (string/replace #"^set-" "") keyword))
+  ([event-name]
+   (fn-set-event->cm-name event-name 0))
+  ([event-name index]
+   (-> (name event-name) (string/replace #"^set-" "") (string/replace #"$" (str "-" index)) keyword)))
 
 (defn fn-part->cm-name
-  [part-name]
-  (-> (name part-name) (string/replace #"$" "-cm") keyword))
+  ([part-name]
+   (fn-part->cm-name part-name 0))
+  ([part-name index]
+   (-> (name part-name) (string/replace #"$" (str "-cm-" index)) keyword)))
 
 (defn fn-tx-event->part-name
-  [event-name]
-  (-> (name event-name) (string/replace #"-tx$" "") keyword))
+  ([event-name]
+   (fn-tx-event->part-name event-name 0))
+  ([event-name index]
+   (-> (name event-name) (string/replace #"-tx$" (str "-" index)) keyword)))
 
 
 (reg-event-fx
@@ -360,10 +368,11 @@
     (re-frame/dispatch [::set-form-part])))
 
 (defn fn-part-tx
-  [{:keys [db]} [event-name tx]]
+  [{:keys [db]} [event-name tx index]]
   (let [part-name (fn-tx-event->part-name event-name)
         cm-name   (fn-tx-event->cm-name event-name)
         cm-map    (get db cm-name)]
+    (prn :event event-name :index index)
     {:db            (assoc db :tx tx part-name (extract-tx-text tx))
      ::fn-part-edit [cm-map tx]}))
 
@@ -400,6 +409,7 @@
 (defn set-cm-name
   [db [event-name cm]]
   (let [kw-name (fn-set-event->cm-name event-name)]
+    (prn ::set-cm-name kw-name)
     (assoc db kw-name {:cm cm :name kw-name})))
 
 (reg-event-db ::set-fn-name-cm set-cm-name)
@@ -484,19 +494,6 @@
         (.update whole-form-cm #js [format-tx])))))
 
 
-(comment
-  '(defn ranker
-     "improve ranking on the celestial index"
-     {:since "0.0.1"}
-     ([x]
-      {:pre [(pos-int? x)]}
-      (ranker x (inc x)))
-     ([x y]
-      {:pre [(pos-int? x)]}
-      [(inc x) (inc y)]))
-  )
-
-
 ;; Add definition type (defn- or defn)
 (reg-event-fx
   ::set-form-part
@@ -541,10 +538,11 @@
                               :fn-doc       (:docstring fn-data)
                               :fn-attrs     (:meta fn-data)}
           arity-1-properties (arity-data->properties arity-data)
-          arity-n-properties (map arity-data->properties arity-data)
+          arity-n-properties {:arity-n-data (map arity-data->properties arity-data)}
           parts-properties   (merge (select-keys fn-properties fn-single-arity-parts)
                                     (select-keys arity-1-properties fn-single-arity-parts))]
-      {:db               (merge db fn-properties arity-1-properties)
+      (prn :arity-n-data arity-n-properties)
+      {:db               (merge db fn-properties arity-1-properties arity-n-properties)
        ::fn-parts-update parts-properties})))
 
 (reg-event-db

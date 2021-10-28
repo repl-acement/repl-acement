@@ -161,3 +161,7 @@
   (fn [db]
     (:fn-body db)))
 
+(reg-sub
+  ::fn-arity-n-data
+  (fn [db]
+    (:arity-n-data db)))
