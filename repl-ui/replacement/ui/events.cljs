@@ -12,6 +12,7 @@
     [replacement.ui.ws :as ws]
     [replacement.specs.messages :as message-specs]
     [replacement.specs.user :as user-specs]
+    [replacement.ui.wiring :as wiring]
     [taoensso.sente :as sente]
     [zprint.core :refer [zprint-file-str]]))
 
@@ -346,6 +347,26 @@
    (-> (name event-name) (string/replace #"-tx$" (str "-" index)) keyword)))
 
 
+(defn fn-part->cm-name-simpler
+  [part-name]
+  (-> (name part-name)
+      (string/replace #"$" "-cm")
+      keyword))
+
+(defn n-arity-parts-map
+  [n-arity-data]
+  (->> n-arity-data
+       (map-indexed
+         (fn [index arity-data]
+           (let [arity (str "arity-" index)]
+             (->> (reduce
+                    (fn [parts part]
+                      (let [part-name (keyword (str arity "." (name part)))]
+                        (assoc parts part (fn-part->cm-name part-name))))
+                    {} (keys arity-data))))))
+       (into [])
+       (hash-map :arity-n-data)))
+
 (reg-event-fx
   ::code-mirror-tx
   (fn [{:keys [db]} [_ tx]]
@@ -357,11 +378,15 @@
 (def fn-common-parts [:fn-name :fn-doc :fn-attrs])
 (def fn-arity-parts [:fn-args :fn-pp :fn-body])
 (def fn-single-arity-parts (concat fn-common-parts fn-arity-parts))
+(defn multi-arity-parts
+  [arity]
+  (map #(keyword (str "arity-" arity "." (name %))) fn-arity-parts))
 
 (reg-fx
   ::fn-part-edit
   (fn [[part-cm tx]]
     (let [{:keys [cm]} part-cm]
+      (prn ::fn-part-edit :part-cm part-cm)
       (.update cm #js [tx])
       (let [format-tx (format/format-all (.-state cm))]
         (.update cm #js [format-tx])))
@@ -369,10 +394,10 @@
 
 (defn fn-part-tx
   [{:keys [db]} [event-name tx index]]
-  (let [part-name (fn-tx-event->part-name event-name)
-        cm-name   (fn-tx-event->cm-name event-name)
+  (let [part-name (fn-tx-event->part-name event-name index)
+        cm-name   (fn-tx-event->cm-name event-name index)
         cm-map    (get db cm-name)]
-    (prn :event event-name :index index)
+    (prn :event event-name :index index :part-name part-name :text (extract-tx-text tx))
     {:db            (assoc db :tx tx part-name (extract-tx-text tx))
      ::fn-part-edit [cm-map tx]}))
 
@@ -407,11 +432,16 @@
     (assoc db :code-mirror-view view)))
 
 (defn set-cm-name
-  [db [event-name cm]]
-  (let [kw-name (fn-set-event->cm-name event-name)]
-    (prn ::set-cm-name kw-name)
+  [db [event-name cm index]]
+  (let [kw-name (fn-set-event->cm-name event-name index)]
     (assoc db kw-name {:cm cm :name kw-name})))
 
+(reg-event-db
+  ::set-cm-name
+  (fn [db [cm comp-name]]
+    (assoc db comp-name {:cm cm :name comp-name})))
+
+;; name, doc etc can be passed as a param
 (reg-event-db ::set-fn-name-cm set-cm-name)
 (reg-event-db ::set-fn-doc-cm set-cm-name)
 (reg-event-db ::set-fn-attrs-cm set-cm-name)
@@ -466,15 +496,32 @@
                    [] changes))))
 
 (reg-event-fx
-  ::fn-parts-update-cms
-  (fn [{:keys [db]} [_ updated-fn-properties]]
-    (let [fn-parts         (keys updated-fn-properties)
+  ::fn-arity-1-update-cms
+  (fn [{:keys [db]} [_ fn-properties]]
+    (let [fn-parts         (keys (select-keys fn-properties fn-single-arity-parts))
           cms-with-changes (reduce (fn [cms fn-part]
                                      (let [cm-name    (fn-part->cm-name fn-part)
                                            cm         (get-in db [cm-name :cm])
                                            cm-state   (-> cm .-state)
                                            doc-length (-> cm-state .-doc .-length)
-                                           new-text   (str (get updated-fn-properties fn-part))
+                                           new-text   (str (get fn-properties fn-part))
+                                           tx         ^js (.update cm-state (clj->js {:changes {:from 0 :to doc-length :insert new-text}}))]
+                                       (conj cms {:cm cm :tx tx})))
+                                   [] fn-parts)]
+      ;; NOTE: could be optimized to update only the changed ones
+      {:db          db
+       ::update-cms cms-with-changes})))
+
+(reg-event-fx
+  ::fn-arity-n-update-cms
+  (fn [{:keys [db]} [_ fn-properties index]]
+    (let [fn-parts         (keys fn-properties)
+          cms-with-changes (reduce (fn [cms fn-part]
+                                     (let [cm-name    (fn-part->cm-name fn-part index)
+                                           cm         (get-in db [cm-name :cm])
+                                           cm-state   (-> cm .-state)
+                                           doc-length (-> cm-state .-doc .-length)
+                                           new-text   (str (get fn-properties fn-part))
                                            tx         ^js (.update cm-state (clj->js {:changes {:from 0 :to doc-length :insert new-text}}))]
                                        (conj cms {:cm cm :tx tx})))
                                    [] fn-parts)]
@@ -493,27 +540,46 @@
       (let [format-tx (format/format-all (.-state whole-form-cm))]
         (.update whole-form-cm #js [format-tx])))))
 
+(defn- parts-text
+  [db parts]
+  (apply str (reduce
+               (fn [text k]
+                 (prn :k k :db-k (get db k) :db-attrs-0 (get db :fn-attrs-0) :text text)
+                 (conj text (pr-str (get db k))))
+               [] parts)))
+
+(defn- multi-arity-text
+  [parts]
+  (str "(" (parts-text parts (keys parts)) ")"))
 
 ;; Add definition type (defn- or defn)
 (reg-event-fx
   ::set-form-part
   (fn [{:keys [db]} [_]]
-    (let [text       (apply str (reduce
-                                  (fn [text k]
-                                    (conj text (if (= k :fn-doc) ;; urgh ... ideas welcome!
-                                                 (str "\"" (get db k) "\"")
-                                                 (str " " (get db k) " "))))
-                                  [] fn-single-arity-parts))
-          whole-text (str "(defn " text ")")
-          formatted  (zprint-file-str whole-text "::set-form-part")
-          whole-cm   (get-in db [:fn-whole-form-cm :cm])]
+    (let [single-arity? (:single-arity? db)
+          text          (if single-arity?
+                          (parts-text db fn-single-arity-parts)
+                          (let [common-text (parts-text db fn-common-parts)
+                                multi-text  (map (fn [data]
+                                                   (multi-arity-text data)) (:arity-n-data db))]
+                            (prn :common-text common-text)
+                            (prn :multi-text multi-text)
+                            (apply str common-text multi-text)))
+          whole-text    (str "(defn " text ")")
+          formatted     (zprint-file-str whole-text "::set-form-part")
+          whole-cm      (get-in db [:fn-whole-form-cm-0 :cm])]
       {:db               db
        ::fn-whole-update [whole-cm formatted]})))
 
 (reg-fx
   ::fn-parts-update
-  (fn [fn-parts-properties]
-    (re-frame/dispatch [::fn-parts-update-cms fn-parts-properties])))
+  (fn [{:keys [single-arity?] :as fn-parts-properties}]
+    (re-frame/dispatch [::fn-arity-1-update-cms fn-parts-properties])
+    (if-not single-arity?
+      (let [arity-n-data (:arity-n-data fn-parts-properties)]
+        (doall (map-indexed (fn [index data]
+                              (re-frame/dispatch [::fn-arity-n-update-cms data index]))
+                            arity-n-data))))))
 
 (defn- arity-data->properties
   [arity-data]
@@ -539,11 +605,9 @@
                               :fn-attrs     (:meta fn-data)}
           arity-1-properties (arity-data->properties arity-data)
           arity-n-properties {:arity-n-data (map arity-data->properties arity-data)}
-          parts-properties   (merge (select-keys fn-properties fn-single-arity-parts)
-                                    (select-keys arity-1-properties fn-single-arity-parts))]
-      (prn :arity-n-data arity-n-properties)
-      {:db               (merge db fn-properties arity-1-properties arity-n-properties)
-       ::fn-parts-update parts-properties})))
+          updated-parts      (merge fn-properties arity-1-properties arity-n-properties fn-data)]
+      {:db               (merge db fn-properties arity-1-properties arity-n-properties fn-data)
+       ::fn-parts-update updated-parts})))
 
 (reg-event-db
   ::users

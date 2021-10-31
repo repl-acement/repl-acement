@@ -37,7 +37,6 @@
                 :as (s/? (s/cat :as #{:as} :sym ::core-specs/local-name)))))
 
 (defn arg-list-unformer [a]
-  (prn :a a)
   (vec
     (if (and (coll? (last a)) (= '& (first (last a))))
       (concat (drop-last a) (last a))
@@ -53,13 +52,13 @@
 (defn- arity-data
   [params+body]
   (let [params+body-value (s/unform ::core-specs/params+body params+body)
-        params-value      (first params+body-value)
-        pp?               (map? (second params+body-value))
-        pp                (when pp? (second params+body-value))
-        body-value        (last params+body-value)]
-    {:params-value params-value
-     :body         body-value
-     :pre-post-map pp}))
+        param-list        (first params+body-value)
+        prepost?          (map? (second params+body-value))
+        prepost           (when prepost? (second params+body-value))
+        body              (last params+body-value)]
+    {:param-list param-list
+     :body       body
+     :prepost    prepost}))
 
 (defn split-defn-args
   [conformed-defn-args]

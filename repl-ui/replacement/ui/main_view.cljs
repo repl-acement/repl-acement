@@ -87,7 +87,29 @@
          cm-event (keyword event-ns (str "set-fn-" (name part) "-cm"))]
      (fn [comp]
        (let [!view (editor-view comp doc tx-event index)]
-         (rf/dispatch [cm-event !view]))))))
+         (rf/dispatch-sync [cm-event !view index]))))))
+
+(defn part-edit
+  [part-cm-name tx]
+  (rf/dispatch [::events/part-edit tx part-cm-name]))
+
+(defn comp-editor-view
+  [dom-element initial-document part-cm-name]
+  (EditorView. #js {:state    (.create EditorState #js {:doc        initial-document
+                                                        :extensions extensions})
+                    :parent   (rdom/dom-node dom-element)
+                    :dispatch (partial part-edit part-cm-name)}))
+
+(defn single-comp-editor
+  "Produce a code mirror for any single component-part of a thing (eg the name of something)
+  using an optional initial document. An empty string is used if none is provided."
+  ([component-part]
+   (single-comp-editor component-part ""))
+  ([component-part initial-document]
+   (fn [dom-element]
+     (let [part-cm-name (replacement.ui.wiring/comp-name->cm-name component-part)
+           !view (comp-editor-view dom-element initial-document part-cm-name)]
+       (rf/dispatch-sync [::events/set-cm-name !view component-part])))))
 
 (defn form-fn-name []
   (let [!mount (fn-editor :name)]
@@ -101,8 +123,6 @@
   (let [!mount (fn-editor :attrs)]
     [:div {:ref !mount}]))
 
-;; compound these into an ARITY vector
-;; can be 1 or more
 (defn form-fn-args [arity-index]
   (let [!mount (fn-editor :args arity-index)]
     [:div {:ref !mount}]))
@@ -147,8 +167,8 @@
                                           [(inc x) (inc y)])))
                        formatted (zprint-file-str doc "::fn-whole-update")
                        !view     (editor-view comp formatted ::events/fn-whole-form-tx 0)]
-                   (rf/dispatch [::events/set-fn-whole-form-cm !view])
-                   (rf/dispatch [::events/set-whole-form formatted])))]
+                   (rf/dispatch [::events/set-fn-whole-form-cm !view 0])
+                   (rf/dispatch [::events/set-whole-form formatted 0])))]
     [:div {:ref !mount}]))
 
 (defn result-view [{:keys [val]}]
@@ -177,26 +197,31 @@
       [:div {:class "code-box"}
        [result-box]]]]]])
 
+(defn prepend-index
+  [arity-index n-arities label]
+  (if (= 1 n-arities)
+    label
+    (str "[" arity-index "] " label)))
+
 (defn defn-arity-parts
-  [arity-index]
+  [arity-index n-arities]
   [:table.w-full.md:max-w-sm.text-sm
    [:tbody
     [:tr.border-t [:td]]
-    ;; FIX ... multi-arity
     [:tr.align-center
-     [:td.py-1 "Parameters"]
+     [:td.py-1 (prepend-index arity-index n-arities "Parameters")]
      [:td.py-1.pr-12 [:div {:class "code-wrapper"}
                       [:div {:class "code-box"}
                        [form-fn-args arity-index]]]]]
     [:tr.border-t [:td]]
     [:tr.align-center
-     [:td.py-1 "Pre/Post"]
+     [:td.py-1 (prepend-index arity-index n-arities  "Pre/Post")]
      [:td.py-1.pr-12 [:div {:class "code-wrapper"}
                       [:div {:class "code-box"}
                        [form-fn-pp arity-index]]]]]
     [:tr.border-t [:td]]
     [:tr.align-center
-     [:td.py-1 "Body"]
+     [:td.py-1 (prepend-index arity-index n-arities "Body")]
      [:td.py-1.pr-12 [:div {:class "code-wrapper"}
                       [:div {:class "code-box"}
                        [form-fn-body arity-index]]]]]]])
@@ -204,31 +229,31 @@
 (defn defn-parts []
   (let [arity-n-data (rf/subscribe [::subs/fn-arity-n-data])]
     [:div {:class "wrap"}
-     [:main
-      [:table.w-full.md:max-w-sm.text-sm
-       [:tbody
-        [:tr.align-center
-         [:td.py-1 "Name"]
-         [:td.py-1.pr-12 [:div {:class "code-wrapper"}
-                          [:div {:class "code-box"}
-                           [form-fn-name]]]]]
-        [:tr.border-t [:td]]
-        [:tr.align-center
-         [:td.py-1 "Docs"]
-         [:td.py-1.pr-12 [:div {:class "code-wrapper"}
-                          [:div {:class "code-box"}
-                           [form-fn-doc]]]]]
-        [:tr.border-t [:td]]
-        [:tr.align-center
-         [:td.py-1 "Attributes"]
-         [:td.py-1.pr-12 [:div {:class "code-wrapper"}
-                          [:div {:class "code-box"}
-                           [form-fn-attrs]]]]]]]
-      ;; FIX ... multi-arity
-      (let [defn-arities (or @arity-n-data [1])]
-        (map (fn [artity-index]
-               (defn-arity-parts artity-index))
-             (range (count defn-arities))))]]))
+     (into [:main
+            [:table.w-full.md:max-w-sm.text-sm
+             [:tbody
+              [:tr.align-center
+               [:td.py-1 "Name"]
+               [:td.py-1.pr-12 [:div {:class "code-wrapper"}
+                                [:div {:class "code-box"}
+                                 [form-fn-name]]]]]
+              [:tr.border-t [:td]]
+              [:tr.align-center
+               [:td.py-1 "Docs"]
+               [:td.py-1.pr-12 [:div {:class "code-wrapper"}
+                                [:div {:class "code-box"}
+                                 [form-fn-doc]]]]]
+              [:tr.border-t [:td]]
+              [:tr.align-center
+               [:td.py-1 "Attributes"]
+               [:td.py-1.pr-12 [:div {:class "code-wrapper"}
+                                [:div {:class "code-box"}
+                                 [form-fn-attrs]]]]]]]]
+           (let [defn-arities (or @arity-n-data [:arity-1])
+                 n-arities (count defn-arities)]
+             (map (fn [arity-index]
+                    (defn-arity-parts arity-index n-arities))
+                  (range n-arities))))]))
 
 (defn linux? []
   (some? (re-find #"(Linux)|(X11)" js/navigator.userAgent)))
