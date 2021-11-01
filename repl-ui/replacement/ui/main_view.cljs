@@ -116,18 +116,6 @@
   [cm-name]
   [:div {:ref (comp-editor cm-name)}])
 
-(defn form-fn-args [arity-index]
-  (let [!mount (fn-editor :args arity-index)]
-    [:div {:ref !mount}]))
-
-(defn form-fn-pp [arity-index]
-  (let [!mount (fn-editor :pp arity-index)]
-    [:div {:ref !mount}]))
-
-(defn form-fn-body [arity-index]
-  (let [!mount (fn-editor :body arity-index)]
-    [:div {:ref !mount}]))
-
 (comment
   '(defn ranker-arity-1
      "improve ranking on the celestial index"
@@ -162,7 +150,7 @@
                        cm-name   (wiring/comp-name->cm-name :defn.form)
                        !view     (comp-editor-view comp formatted cm-name)]
                    (rf/dispatch [::events/set-cm+name !view cm-name])
-                   (rf/dispatch [::events/set-whole-form formatted])))]
+                   (rf/dispatch [::events/transact-whole-defn-form formatted])))]
     [:div {:ref !mount}]))
 
 (defn result-view [{:keys [val]}]
@@ -193,20 +181,20 @@
 
 (defn prepend-index
   [arity-index n-arities label]
-  (if (= 1 n-arities)
+  (if (zero? n-arities)
     label
     (str "[" arity-index "] " label)))
 
 (defn component-part
   ([part-name label]
-   (component-part part-name label 0 1))
+   (component-part part-name label 0 0))
   ([part-name label arity-index n-arities]
    [:tr.align-center
     [:td.py-1 (prepend-index arity-index n-arities label)]
     [:td.py-1.pr-12
      [:div {:class "code-wrapper"}
       [:div {:class "code-box"}
-       (if (= 1 n-arities)
+       (if (zero? n-arities)
          [part-editor (replacement.ui.wiring/comp-name->cm-name part-name)]
          [part-editor (replacement.ui.wiring/indexed-comp-name->cm-name arity-index part-name)])]]]]))
 
@@ -219,7 +207,7 @@
     [:tr.border-t [:td]]
     [component-part :defn.prepost "Pre/Post" arity-index n-arities]
     [:tr.border-t [:td]]
-    [component-part :defn.prepost "Body" arity-index n-arities]]])
+    [component-part :defn.body "Body" arity-index n-arities]]])
 
 (defn defn-parts
   []
@@ -230,7 +218,7 @@
              [:tbody
               [component-part :defn.name "Name"]
               [:tr.border-t [:td]]
-              [component-part :defn.docstring "Docs"]
+              [component-part :defn.docstring "Docstring"]
               [:tr.border-t [:td]]
               [component-part :defn.meta "Attributes"]]]]
            (let [defn-arities (or @arity-n-data [:arity-1])
