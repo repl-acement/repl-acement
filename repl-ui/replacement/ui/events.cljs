@@ -383,23 +383,21 @@
   (map #(keyword (str "arity-" arity "." (name %))) fn-arity-parts))
 
 (reg-fx
-  ::fn-part-edit
-  (fn [[part-cm tx]]
-    (let [{:keys [cm]} part-cm]
-      (prn ::fn-part-edit :part-cm part-cm)
-      (.update cm #js [tx])
-      (let [format-tx (format/format-all (.-state cm))]
-        (.update cm #js [format-tx])))
+  ::fn-part-update
+  (fn [[cm tx]]
+    (.update cm #js [tx])
+    (let [format-tx (format/format-all (.-state cm))]
+      (.update cm #js [format-tx]))
     (re-frame/dispatch [::set-form-part])))
 
 (defn fn-part-tx
   [{:keys [db]} [event-name tx index]]
   (let [part-name (fn-tx-event->part-name event-name index)
         cm-name   (fn-tx-event->cm-name event-name index)
-        cm-map    (get db cm-name)]
+        cm        (get-in db [cm-name :cm])]
     (prn :event event-name :index index :part-name part-name :text (extract-tx-text tx))
-    {:db            (assoc db :tx tx part-name (extract-tx-text tx))
-     ::fn-part-edit [cm-map tx]}))
+    {:db              (assoc db :tx tx part-name (extract-tx-text tx))
+     ::fn-part-update [cm tx]}))
 
 (reg-event-fx ::fn-name-tx fn-part-tx)
 (reg-event-fx ::fn-doc-tx fn-part-tx)
@@ -407,6 +405,17 @@
 (reg-event-fx ::fn-args-tx fn-part-tx)
 (reg-event-fx ::fn-pp-tx fn-part-tx)
 (reg-event-fx ::fn-body-tx fn-part-tx)
+
+(reg-event-fx
+  ::part-edit
+  (fn [{:keys [db]} [part-cm-name tx]]
+    (let [part-name (wiring/cm-name->comp-name part-cm-name)
+          cm        (get-in db [part-cm-name :cm])]
+      {:db              (assoc db :tx tx
+                                part-cm-name cm
+                                part-name (extract-tx-text tx))
+       ::fn-part-update [cm tx]})))
+
 
 (reg-fx
   ::fn-whole-edit
@@ -437,7 +446,7 @@
     (assoc db kw-name {:cm cm :name kw-name})))
 
 (reg-event-db
-  ::set-cm-name
+  ::set-cm+name
   (fn [db [cm comp-name]]
     (assoc db comp-name {:cm cm :name comp-name})))
 
