@@ -351,8 +351,7 @@
   ::part-edit
   (fn [{:keys [db]} [_ part-cm-name tx]]
     (let [cm (get-in db [part-cm-name :cm])]
-      ;; TODO ... add a flag to ::fn-part-update ... need to ripple effect?
-      (prn :part-edit-event :part-cm-name part-cm-name :tx tx :cm cm)
+      ;(prn :part-edit-event :part-cm-name part-cm-name :tx tx :cm cm)
       {:db              db
        ::fn-part-update [cm tx]})))
 
@@ -367,7 +366,7 @@
 (reg-event-fx
   ::fn-whole-form-tx
   (fn [{:keys [db]} [_ cm-name tx]]
-    (prn :fn-whole-form-tx :tx-text (extract-tx-text tx))
+    ;(prn :fn-whole-form-tx :tx-text (extract-tx-text tx))
     (let [cm-map (get db cm-name)]
       {:db             db
        ::fn-whole-edit [cm-map tx]})))
@@ -477,8 +476,7 @@
           cm-state   (-> cm .-state)
           doc-length (-> cm-state .-doc .-length)
           tx         ^js (.update cm-state (clj->js {:changes {:from 0 :to doc-length :insert whole-text}}))]
-      (.update cm #js [tx]))
-    (re-frame/dispatch [::transact-whole-defn-form whole-text])))
+      (.update cm #js [tx]))))
 
 (defn- parts-text
   [db cm-keys]
@@ -498,7 +496,7 @@
   (let [defn-data (arity-data->properties per-arity-data)
         cm-keys   (map (partial wiring/indexed-comp-name->cm-name index) (keys defn-data))
         text      (parts-text db cm-keys)]
-    (prn :arity-text :index index :text text :per-arity-data per-arity-data :defn-data defn-data)
+    ;(prn :arity-text :index index :text text :per-arity-data per-arity-data :defn-data defn-data)
     (str "(" text ")")))
 
 ;; Add definition type (defn- or defn)
@@ -510,7 +508,7 @@
                             (common-parts-text db fn-common-parts)
                             " "
                             (map-indexed (fn [index data]
-                                           (prn :set-form-part :index index :data data)
+                                           ;(prn :set-form-part :index index :data data)
                                            (arity-text db index data))
                                          arity-data))
           whole-text (str "(defn " text ")")
@@ -531,7 +529,7 @@
 (reg-fx
   ::fn-parts-update
   (fn [{:keys [arity-data]}]
-    (prn :fn-parts-update :arity-data arity-data)
+    ;(prn :fn-parts-update :arity-data arity-data)
     (re-frame/dispatch [::fn-fixed-items-update-cms])
     (doall (map-indexed (fn [index data]
                           (re-frame/dispatch [::fn-arity-n-update-cms data index]))

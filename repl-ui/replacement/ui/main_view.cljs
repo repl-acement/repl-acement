@@ -79,7 +79,7 @@
 
 (defn part-edit
   [part-cm-name tx]
-  (prn :part-edit :part-cm-name part-cm-name :tx tx)
+  ;(prn :part-edit :part-cm-name part-cm-name :tx tx)
   (rf/dispatch [::events/part-edit part-cm-name tx]))
 
 (defn comp-editor-view
@@ -206,7 +206,7 @@
               [:tr.border-t [:td]]
               [component-part :defn.meta "Attributes"]]]]
            (let [n-arities (count @arity-data)]
-             (prn :defn-parts :arity-data @arity-data :n-arities n-arities)
+             ;(prn :defn-parts :arity-data @arity-data :n-arities n-arities)
              (map (fn [arity-index]
                     (defn-arity-parts arity-index n-arities))
                   (range n-arities))))]))
