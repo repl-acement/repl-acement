@@ -413,7 +413,7 @@
   (let [{:keys [fn-tail]} conformed-defn-args
         single-arity? (= :arity-1 (first fn-tail))
         arity-data    (if single-arity?
-                        (arity-data (-> fn-tail last))
+                        (-> fn-tail last arity-data vector)
                         (map arity-data (-> fn-tail last :bodies)))]
     (merge conformed-defn-args
            {:single-arity? single-arity?
@@ -512,7 +512,7 @@
                             (map-indexed (fn [index data]
                                            (prn :set-form-part :index index :data data)
                                            (arity-text db index data))
-                                         (if (map? arity-data) [arity-data] arity-data)))
+                                         arity-data))
           whole-text (str "(defn " text ")")
           formatted  (zprint-file-str whole-text ::set-form-part)
           whole-cm   (:defn.form.cm db)]

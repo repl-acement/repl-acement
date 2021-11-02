@@ -118,14 +118,14 @@
       {:since "0.0.1"}
       ([x]
        {:pre [(pos-int? x)]}
-       (ranker x (inc x)))
+       (ranker-arity-n x (inc x)))
       ([x y]
        {:pre [(pos-int? x)]}
        [(inc x) (inc y)]))])
 
 (defn editable-fn-form []
   (let [!mount (fn [comp]
-                 (let [doc       (str (first doc-options))
+                 (let [doc       (str (last doc-options))
                        formatted (zprint-file-str doc "::fn-whole-update")
                        cm-name   (wiring/comp-name->cm-name :defn.form)
                        !view     (EditorView. #js {:state    (.create EditorState #js {:doc        formatted
@@ -205,7 +205,7 @@
               [component-part :defn.docstring "Docstring"]
               [:tr.border-t [:td]]
               [component-part :defn.meta "Attributes"]]]]
-           (let [n-arities    (if (map? @arity-data) 1 (count @arity-data))]
+           (let [n-arities (count @arity-data)]
              (prn :defn-parts :arity-data @arity-data :n-arities n-arities)
              (map (fn [arity-index]
                     (defn-arity-parts arity-index n-arities))
