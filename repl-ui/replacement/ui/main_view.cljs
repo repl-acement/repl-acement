@@ -106,7 +106,7 @@
   [:div {:ref (comp-editor cm-name)}])
 
 (def doc-options
-  ['(defn ranker-arity-1
+  ['(defn ranker
       "improve ranking on the celestial index"
       {:since "0.0.1"}
       [x]
@@ -125,7 +125,7 @@
 
 (defn editable-fn-form []
   (let [!mount (fn [comp]
-                 (let [doc       (str (last doc-options))
+                 (let [doc       (str (first doc-options))
                        formatted (zprint-file-str doc "::fn-whole-update")
                        cm-name   (wiring/comp-name->cm-name :defn.form)
                        !view     (EditorView. #js {:state    (.create EditorState #js {:doc        formatted
