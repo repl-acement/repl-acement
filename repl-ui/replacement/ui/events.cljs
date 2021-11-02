@@ -475,7 +475,8 @@
     (let [cm         (:cm form-cm-map)
           cm-state   (-> cm .-state)
           doc-length (-> cm-state .-doc .-length)
-          tx         ^js (.update cm-state (clj->js {:changes {:from 0 :to doc-length :insert whole-text}}))]
+          formatted  (zprint-file-str whole-text ::set-form-part)
+          tx         ^js (.update cm-state (clj->js {:changes {:from 0 :to doc-length :insert formatted}}))]
       (.update cm #js [tx]))))
 
 (defn- parts-text
@@ -494,10 +495,8 @@
 (defn- arity-text
   [db index per-arity-data]
   (let [defn-data (arity-data->properties per-arity-data)
-        cm-keys   (map (partial wiring/indexed-comp-name->cm-name index) (keys defn-data))
-        text      (parts-text db cm-keys)]
-    ;(prn :arity-text :index index :text text :per-arity-data per-arity-data :defn-data defn-data)
-    (str "(" text ")")))
+        cm-keys   (map (partial wiring/indexed-comp-name->cm-name index) (keys defn-data))]
+    (parts-text db cm-keys)))
 
 ;; Add definition type (defn- or defn)
 (reg-event-fx
