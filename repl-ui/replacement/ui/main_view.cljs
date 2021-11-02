@@ -77,21 +77,9 @@
                     :dispatch (fn [tx]
                                 (rf/dispatch [event-name tx index]))}))
 
-(defn fn-editor
-  ([part]
-   (fn-editor part 0))
-  ([part index]
-   (fn-editor part index ""))
-  ([part index doc]
-   (let [event-ns "replacement.ui.events"
-         tx-event (keyword event-ns (str "fn-" (name part) "-tx"))
-         cm-event (keyword event-ns (str "set-fn-" (name part) "-cm"))]
-     (fn [comp]
-       (let [!view (editor-view comp doc tx-event index)]
-         (rf/dispatch-sync [cm-event !view index]))))))
-
 (defn part-edit
   [part-cm-name tx]
+  (prn :part-edit :part-cm-name part-cm-name :tx tx)
   (rf/dispatch [::events/part-edit part-cm-name tx]))
 
 (defn comp-editor-view
@@ -114,43 +102,39 @@
 
 (defn part-editor
   [cm-name]
+  ;(prn :part-editor :cm-name cm-name)
   [:div {:ref (comp-editor cm-name)}])
 
-(comment
-  '(defn ranker-arity-1
-     "improve ranking on the celestial index"
-     {:since "0.0.1"}
-     [x]
-     {:pre [(pos-int? x)]}
-     (inc x))
+(def doc-options
+  ['(defn ranker-arity-1
+      "improve ranking on the celestial index"
+      {:since "0.0.1"}
+      [x]
+      {:pre [(pos-int? x)]}
+      (inc x))
 
-  '(defn ranker-arity-n
-     "improve ranking on the celestial index"
-     {:since "0.0.1"}
-     ([x]
-      {:pre [(pos-int? x)]}
-      (ranker x (inc x)))
-     ([x y]
-      {:pre [(pos-int? x)]}
-      [(inc x) (inc y)]))
-  )
+   '(defn ranker-arity-n
+      "improve ranking on the celestial index"
+      {:since "0.0.1"}
+      ([x]
+       {:pre [(pos-int? x)]}
+       (ranker x (inc x)))
+      ([x y]
+       {:pre [(pos-int? x)]}
+       [(inc x) (inc y)]))])
 
 (defn editable-fn-form []
   (let [!mount (fn [comp]
-                 (let [doc       (str '(defn ranker-arity-n
-                                         "improve ranking on the celestial index"
-                                         {:since "0.0.1"}
-                                         ([x]
-                                          {:pre [(pos-int? x)]}
-                                          (ranker x (inc x)))
-                                         ([x y]
-                                          {:pre [(pos-int? x)]}
-                                          [(inc x) (inc y)])))
+                 (let [doc       (str (first doc-options))
                        formatted (zprint-file-str doc "::fn-whole-update")
                        cm-name   (wiring/comp-name->cm-name :defn.form)
-                       !view     (comp-editor-view comp formatted cm-name)]
-                   (rf/dispatch [::events/set-cm+name !view cm-name])
-                   (rf/dispatch [::events/transact-whole-defn-form formatted])))]
+                       !view     (EditorView. #js {:state    (.create EditorState #js {:doc        formatted
+                                                                                       :extensions extensions})
+                                                   :parent   (rdom/dom-node comp)
+                                                   :dispatch (fn [tx]
+                                                               (rf/dispatch [::events/fn-whole-form-tx cm-name tx]))})]
+                   (rf/dispatch-sync [::events/set-cm+name !view cm-name])
+                   (rf/dispatch-sync [::events/transact-whole-defn-form formatted])))]
     [:div {:ref !mount}]))
 
 (defn result-view [{:keys [val]}]
@@ -181,7 +165,7 @@
 
 (defn prepend-index
   [arity-index n-arities label]
-  (if (zero? n-arities)
+  (if (or (zero? n-arities) (= 1 n-arities))
     label
     (str "[" arity-index "] " label)))
 
@@ -211,7 +195,7 @@
 
 (defn defn-parts
   []
-  (let [arity-n-data (rf/subscribe [::subs/fn-arity-n-data])]
+  (let [arity-data (rf/subscribe [::subs/fn-arity-data])]
     [:div {:class "wrap"}
      (into [:main
             [:table.w-full.md:max-w-sm.text-sm
@@ -221,8 +205,8 @@
               [component-part :defn.docstring "Docstring"]
               [:tr.border-t [:td]]
               [component-part :defn.meta "Attributes"]]]]
-           (let [defn-arities (or @arity-n-data [:arity-1])
-                 n-arities    (count defn-arities)]
+           (let [n-arities    (if (map? @arity-data) 1 (count @arity-data))]
+             (prn :defn-parts :arity-data @arity-data :n-arities n-arities)
              (map (fn [arity-index]
                     (defn-arity-parts arity-index n-arities))
                   (range n-arities))))]))
