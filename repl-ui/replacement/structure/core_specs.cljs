@@ -1,11 +1,15 @@
-(ns replacement.ui.core-specs
+(ns replacement.structure.core-specs
   (:require [clojure.spec.alpha :as s]
-            [replacement.ui.fn-specs :as specs]))
+            [replacement.structure.fn-specs :as specs]))
+
+;; There is a problem with this defn-args spec: unform and conform are not fully
+;; inlined (unform returns lists instead of vectors).
+;; We can use code from @viebel to monkey patch :defn-args so that unform and conform are fully inlined.
 
 ;; from https://github.com/viebel/defntly/blob/main/src/defntly/specs.cljc
 
-;; There is a problem with this defn-args spec: unform and conform are not fully inlined (unform returns lists instead of vectors).
-;; The cool thing is that we can monkey patch :defn-args so that unform and conform are fully inlined.
+;; Fundamental issue is here https://clojure.atlassian.net/browse/CLJ-2021
+
 
 (s/def ::specs/binding-form
   (s/or :local-symbol ::specs/local-name

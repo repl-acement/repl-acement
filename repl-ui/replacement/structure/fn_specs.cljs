@@ -1,5 +1,10 @@
-(ns replacement.ui.fn-specs
+(ns replacement.structure.fn-specs
   (:require [clojure.spec.alpha :as s]))
+
+;; DRAGONS BE HERE!!
+;; This is a Cut and Paste from the CLJS core specs
+;; Why such madness? Because it is not available to CLJS code, only macros
+;; Issue is tracked here https://clojure.atlassian.net/browse/CLJS-3016
 
 ;;;; destructure
 

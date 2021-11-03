@@ -23,7 +23,7 @@
             [reagent.core :as r]
             [reagent.dom :as rdom]
             [re-frame.core :as rf]
-            [replacement.ui.events :as events]
+            [replacement.structure.events-defn-form :as defn-events]
             [replacement.ui.remote-prepl :as prepl]
             [replacement.ui.subs :as subs]
             [replacement.ui.wiring :as wiring]
@@ -80,7 +80,7 @@
 (defn part-edit
   [part-cm-name tx]
   ;(prn :part-edit :part-cm-name part-cm-name :tx tx)
-  (rf/dispatch [::events/part-edit part-cm-name tx]))
+  (rf/dispatch [::defn-events/part-edit part-cm-name tx]))
 
 (defn comp-editor-view
   [dom-element initial-document part-cm-name]
@@ -98,7 +98,7 @@
   ([cm-name initial-document]
    (fn [dom-element]
      (let [!view (comp-editor-view dom-element initial-document cm-name)]
-       (rf/dispatch-sync [::events/set-cm+name !view cm-name])))))
+       (rf/dispatch-sync [::defn-events/set-cm+name !view cm-name])))))
 
 (defn part-editor
   [cm-name]
@@ -125,16 +125,16 @@
 
 (defn editable-fn-form []
   (let [!mount (fn [comp]
-                 (let [doc       (str (first doc-options))
+                 (let [doc       (str (rand-nth doc-options))
                        formatted (zprint-file-str doc "::fn-whole-update")
                        cm-name   (wiring/comp-name->cm-name :defn.form)
                        !view     (EditorView. #js {:state    (.create EditorState #js {:doc        formatted
                                                                                        :extensions extensions})
                                                    :parent   (rdom/dom-node comp)
                                                    :dispatch (fn [tx]
-                                                               (rf/dispatch [::events/fn-whole-form-tx cm-name tx]))})]
-                   (rf/dispatch-sync [::events/set-cm+name !view cm-name])
-                   (rf/dispatch-sync [::events/transact-whole-defn-form formatted])))]
+                                                               (rf/dispatch [::defn-events/fn-whole-form-tx cm-name tx]))})]
+                   (rf/dispatch-sync [::defn-events/set-cm+name !view cm-name])
+                   (rf/dispatch-sync [::defn-events/transact-whole-defn-form formatted])))]
     [:div {:ref !mount}]))
 
 (defn result-view [{:keys [val]}]
