@@ -1,4 +1,4 @@
-(ns replacement.structure.events-defn-form
+(ns replacement.forms.events.defn
   "A `defn` form describing a function is a sequence of parts.
   The first parts (name, docstring and meta) are fixed, only `name` is mandatory.
   The next and last part (the tail) is a sequence of a list of parts that can be repeated.
@@ -15,10 +15,10 @@
     [clojure.spec.alpha :as s]
     [nextjournal.clojure-mode.extensions.formatting :as format]
     [re-frame.core :as re-frame :refer [reg-event-db reg-event-fx reg-fx]]
-    [replacement.structure.fn-specs :as fn-specs]
-    [replacement.structure.core-specs :as core-specs]
+    [replacement.structure.core-fn-specs :as core-fn-specs]
+    [replacement.structure.form-specs :as form-specs]
     [replacement.ui.helpers :refer [js->cljs]]
-    [replacement.ui.wiring :as wiring]
+    [replacement.structure.wiring :as wiring]
     [zprint.core :refer [zprint-file-str]]))
 
 (defn extract-tx-text
@@ -85,7 +85,7 @@
 
 (defn- arity-data
   [params+body]
-  (let [params+body-value (s/unform ::fn-specs/params+body params+body)
+  (let [params+body-value (s/unform ::core-fn-specs/params+body params+body)
         params-value      (first params+body-value)
         pp?               (map? (second params+body-value))
         pp                (when pp? (second params+body-value))
@@ -152,9 +152,9 @@
 (defn- text->spec-data
   [text]
   (let [data          (rdr/read-string text)
-        conformed     (s/conform ::core-specs/defn data)
-        explain-data  (and (= s/invalid? conformed) (s/explain-data ::core-specs/defn data))
-        unformed      (or (= s/invalid? conformed) (s/unform ::core-specs/defn conformed))
+        conformed     (s/conform ::form-specs/defn data)
+        explain-data  (and (= s/invalid? conformed) (s/explain-data ::form-specs/defn data))
+        unformed      (or (= s/invalid? conformed) (s/unform ::form-specs/defn conformed))
         fn-properties {:defn.text         text
                        :defn.conformed    conformed
                        :defn.explain-data explain-data
@@ -229,7 +229,7 @@
   (fn [db [_ whole-form-text]]
     (let [{:keys [defn-args]} (->> whole-form-text
                                    (rdr/read-string)
-                                   (s/conform ::core-specs/defn))
+                                   (s/conform ::form-specs/defn))
           {:keys [fn-name]} (split-defn-args defn-args)]
       (assoc db :fn-id (gensym fn-name)))))
 

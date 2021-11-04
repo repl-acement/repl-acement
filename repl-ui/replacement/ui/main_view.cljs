@@ -10,6 +10,7 @@
             ["lezer-generator" :as lg]
             ["lezer-tree" :as lz-tree]
             [applied-science.js-interop :as j]
+            [cljs.tools.reader.edn :as edn]
             [clojure.string :as str]
             [nextjournal.clojure-mode :as cm-clj]
             [nextjournal.clojure-mode.extensions.close-brackets :as close-brackets]
@@ -23,11 +24,10 @@
             [reagent.core :as r]
             [reagent.dom :as rdom]
             [re-frame.core :as rf]
-            [replacement.structure.events-defn-form :as defn-events]
+            [replacement.forms.events.defn :as defn-events]
+            [replacement.structure.wiring :as wiring]
             [replacement.ui.remote-prepl :as prepl]
             [replacement.ui.subs :as subs]
-            [replacement.ui.wiring :as wiring]
-            [cljs.tools.reader.edn :as edn]
             [zprint.core :refer [zprint-file-str]]))
 
 (def theme
@@ -179,8 +179,8 @@
      [:div {:class "code-wrapper"}
       [:div {:class "code-box"}
        (if (zero? n-arities)
-         [part-editor (replacement.ui.wiring/comp-name->cm-name part-name)]
-         [part-editor (replacement.ui.wiring/indexed-comp-name->cm-name arity-index part-name)])]]]]))
+         [part-editor (wiring/comp-name->cm-name part-name)]
+         [part-editor (wiring/indexed-comp-name->cm-name arity-index part-name)])]]]]))
 
 (defn defn-arity-parts
   [arity-index n-arities]

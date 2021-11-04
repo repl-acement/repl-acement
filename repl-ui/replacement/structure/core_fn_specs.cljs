@@ -1,9 +1,11 @@
-(ns replacement.structure.fn-specs
+(ns replacement.structure.core-fn-specs
   (:require [clojure.spec.alpha :as s]))
 
 ;; DRAGONS BE HERE!!
+
 ;; This is a Cut and Paste from the CLJS core specs
-;; Why such madness? Because it is not available to CLJS code, only macros
+;; Why such madness? Because it is not available to CLJS code, only to macros
+
 ;; Issue is tracked here https://clojure.atlassian.net/browse/CLJS-3016
 
 ;;;; destructure
@@ -153,7 +155,6 @@
   (s/spec (s/cat :clause #{:use-macros}
                  :libs (s/+ (s/alt :libspec ::use-macros-libspec
                                    :flag #{:reload :reload-all :verbose})))))
-
 
 (s/def ::ns-clauses
   (s/* (s/alt :refer-clojure ::ns-refer-clojure

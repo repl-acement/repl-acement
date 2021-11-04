@@ -1,4 +1,4 @@
-(ns replacement.ui.wiring
+(ns replacement.structure.wiring
   "Provide functions to wire up events and components"
   (:require [clojure.string :as string]))
 
