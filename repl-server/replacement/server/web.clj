@@ -95,12 +95,7 @@
         }
       }"]]
     [:body
-     [:div.bg-alt.pb-12.px-6.pt-12.mt-6
-      [:div.flex.flex-col-reverse.md:flex-row
-       [:div.flex-shrink-0.md:px-6.mt-12.md:mt-0 {:class "md:w-1/2"}
-        [:div#form-editor]]
-       [:div.flex-shrink-0.md:px-6.mt-12.md:mt-0 {:class "md:w-1/2"}
-        [:div#parts-editor]]]]
+     [:div#form-editor]
      [:script {:src "js/main.js"}]]))
 
 (defroutes ring-routes

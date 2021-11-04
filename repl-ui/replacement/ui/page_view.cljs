@@ -1,4 +1,4 @@
-(ns replacement.ui.main-view
+(ns replacement.ui.page-view
   (:require ["@codemirror/closebrackets" :refer [closeBrackets]]
             ["@codemirror/fold" :as fold]
             ["@codemirror/gutter" :refer [lineNumbers]]
@@ -23,7 +23,11 @@
             [nextjournal.clojure-mode.test-utils :as test-utils]
             [reagent.core :as r]
             [reagent.dom :as rdom]
-            [re-frame.core :as rf]
+            [re-com.core :refer [h-box v-box box button gap line scroller border label input-text md-circle-icon-button
+                                 md-icon-button input-textarea h-split v-split popover-anchor-wrapper
+                                 popover-content-wrapper title flex-child-style p slider]]
+            [re-com.splits :refer [hv-split-args-desc]]
+            [re-frame.core :as re-frame]
             [replacement.forms.events.defn :as defn-events]
             [replacement.structure.wiring :as wiring]
             [replacement.ui.remote-prepl :as prepl]
@@ -48,26 +52,28 @@
                   ".cm-cursor"              {:visibility "hidden"}
                   "&.cm-focused .cm-cursor" {:visibility "visible"}})))
 
-(def ^:private extensions #js[theme
-                              (history)
-                              highlight/defaultHighlightStyle
-                              (view/drawSelection)
-                              (fold/foldGutter)
-                              (.. EditorState -allowMultipleSelections (of true))
-                              cm-clj/default-extensions
-                              (.of view/keymap cm-clj/complete-keymap)
-                              (.of view/keymap historyKeymap)
-                              (.of view/keymap
-                                   (j/lit
-                                     [{:key "Alt-Enter"
-                                       :run (fn [x] (prepl/eval-cell x))}]))])
+(def ^:private extensions
+  #js[theme
+      (history)
+      highlight/defaultHighlightStyle
+      (view/drawSelection)
+      (fold/foldGutter)
+      (.. EditorState -allowMultipleSelections (of true))
+      cm-clj/default-extensions
+      (.of view/keymap cm-clj/complete-keymap)
+      (.of view/keymap historyKeymap)
+      (.of view/keymap
+           (j/lit
+             [{:key "Alt-Enter"
+               :run (fn [x] (prepl/eval-cell x))}]))])
 
-(def extensions-read-only #js[theme
-                              highlight/defaultHighlightStyle
-                              (view/drawSelection)
-                              (.. EditorState -allowMultipleSelections (of true))
-                              cm-clj/default-extensions
-                              (.. EditorView -editable (of false))])
+(def extensions-read-only
+  #js[theme
+      highlight/defaultHighlightStyle
+      (view/drawSelection)
+      (.. EditorState -allowMultipleSelections (of true))
+      cm-clj/default-extensions
+      (.. EditorView -editable (of false))])
 
 (defn editor-view
   [component initial-document event-name index]
@@ -75,12 +81,12 @@
                                                         :extensions extensions})
                     :parent   (rdom/dom-node component)
                     :dispatch (fn [tx]
-                                (rf/dispatch [event-name tx index]))}))
+                                (re-frame/dispatch [event-name tx index]))}))
 
 (defn part-edit
   [part-cm-name tx]
   ;(prn :part-edit :part-cm-name part-cm-name :tx tx)
-  (rf/dispatch [::defn-events/part-edit part-cm-name tx]))
+  (re-frame/dispatch [::defn-events/part-edit part-cm-name tx]))
 
 (defn comp-editor-view
   [dom-element initial-document part-cm-name]
@@ -98,7 +104,7 @@
   ([cm-name initial-document]
    (fn [dom-element]
      (let [!view (comp-editor-view dom-element initial-document cm-name)]
-       (rf/dispatch-sync [::defn-events/set-cm+name !view cm-name])))))
+       (re-frame/dispatch-sync [::defn-events/set-cm+name !view cm-name])))))
 
 (defn part-editor
   [cm-name]
@@ -132,9 +138,9 @@
                                                                                        :extensions extensions})
                                                    :parent   (rdom/dom-node comp)
                                                    :dispatch (fn [tx]
-                                                               (rf/dispatch [::defn-events/fn-whole-form-tx cm-name tx]))})]
-                   (rf/dispatch-sync [::defn-events/set-cm+name !view cm-name])
-                   (rf/dispatch-sync [::defn-events/transact-whole-defn-form formatted])))]
+                                                               (re-frame/dispatch [::defn-events/fn-whole-form-tx cm-name tx]))})]
+                   (re-frame/dispatch-sync [::defn-events/set-cm+name !view cm-name])
+                   (re-frame/dispatch-sync [::defn-events/transact-whole-defn-form formatted])))]
     [:div {:ref !mount}]))
 
 (defn result-view [{:keys [val]}]
@@ -145,23 +151,16 @@
     [:div {:ref !mount}]))
 
 (defn result-box []
-  (let [results (rf/subscribe [::subs/latest-result])]
-    (fn []
-      (when @results [result-view @results]))))
+  [v-box :children
+   [[title :level :level2 :label  "REPL Output"]
+    (let [results (re-frame/subscribe [::subs/latest-result])]
+      (fn []
+        (when @results [result-view @results])))]])
 
-(defn defn-form []
-  [:div {:class "wrap"}
-   [:main
-    [:input-view {:class "bg-grey"}
-     [:h3 "Function"]
-     [:div {:class "code-wrapper"}
-      [:div {:class "code-box"}
-       [editable-fn-form]]]]
-    [:result-view
-     [:h3 "REPL Output"]
-     [:div {:class "code-wrapper"}
-      [:div {:class "code-box"}
-       [result-box]]]]]])
+(defn form-box []
+  [v-box :children
+   [[title :level :level2 :label "Function"]
+    [editable-fn-form]]])
 
 (defn prepend-index
   [arity-index n-arities label]
@@ -170,45 +169,44 @@
     (str arity-index "-" label)))
 
 (defn component-part
-  ([part-name label]
-   (component-part part-name label 0 0))
-  ([part-name label arity-index n-arities]
-   [:tr.align-left
-    [:td.py-1 (prepend-index arity-index n-arities label)]
-    [:td.py-1.pr-12
-     [:div {:class "code-wrapper"}
-      [:div {:class "code-box"}
-       (if (zero? n-arities)
-         [part-editor (wiring/comp-name->cm-name part-name)]
-         [part-editor (wiring/indexed-comp-name->cm-name arity-index part-name)])]]]]))
+  ([part-name label-text]
+   (component-part part-name label-text 0 0))
+  ([part-name label-text arity-index n-arities]
+   [h-box
+    :gap "10px" :align :center
+    :children
+    [[label :width "110px" :label (prepend-index arity-index n-arities label-text)]
+     (if (zero? n-arities)
+       [part-editor (wiring/comp-name->cm-name part-name)]
+       [part-editor (wiring/indexed-comp-name->cm-name arity-index part-name)])]]))
 
 (defn defn-arity-parts
   [arity-index n-arities]
-  [:table.w-full.md:max-w-sm.text-sm
-   [:tbody
-    [:tr.border-t [:td]]
+  [v-box
+   :gap "10px"
+   :children
+   [[line :color "#f4f4f4"]
     [component-part :defn.params "Parameters" arity-index n-arities]
-    [:tr.border-t [:td]]
+    [line :color "#f4f4f4"]
     [component-part :defn.prepost "Pre/Post" arity-index n-arities]
-    [:tr.border-t [:td]]
+    [line :color "#f4f4f4"]
     [component-part :defn.body "Body" arity-index n-arities]]])
 
 (defn defn-parts
   []
-  (let [arity-data (rf/subscribe [::subs/fn-arity-data])]
-    [:div {:class "wrap"}
-     (into [:main
-            [:table.w-full.md:max-w-sm.text-sm
-             [:tbody
-              [component-part :defn.name "Name"]
-              [:tr.border-t [:td]]
-              [component-part :defn.docstring "Docstring"]
-              [:tr.border-t [:td]]
-              [component-part :defn.meta "Attributes"]]]]
-           (let [n-arities (count @arity-data)]
-             (map (fn [arity-index]
-                    (defn-arity-parts arity-index n-arities))
-                  (range n-arities))))]))
+  (let [arity-data (re-frame/subscribe [::subs/fn-arity-data])]
+    [v-box
+     :gap "10px"                                            ;:align :start :justify :center
+     :children
+     [[component-part :defn.name "Name"]
+      [line :color "#f4f4f4"]
+      [component-part :defn.docstring "Docstring"]
+      [line :color "#f4f4f4"]
+      [component-part :defn.meta "Attributes"]
+      (let [n-arities (count @arity-data)]
+        (map (fn [arity-index]
+               (defn-arity-parts arity-index n-arities))
+             (range n-arities)))]]))
 
 (defn linux? []
   (some? (re-find #"(Linux)|(X11)" js/navigator.userAgent)))
@@ -230,10 +228,23 @@
                   "Ctrl"  "⌃"
                   "Mod"   "⌘"})))
 
-(defn render []
-  (rdom/render [defn-form] (js/document.getElementById "form-editor"))
+(defn defn-form []
+  [v-box
+   :gap "10px"
+   :children
+   [[form-box]
+    [result-box]]])
 
-  (rdom/render [defn-parts] (js/document.getElementById "parts-editor"))
+(defn defn-view []
+  [h-box
+   :gap "100px" :padding "10px"
+   :children
+   [[defn-form]
+    [line :color "#f4f4f4"]
+    [defn-parts]]])
+
+(defn render []
+  (rdom/render [defn-view] (js/document.getElementById "form-editor"))
 
   (let [mapping (key-mapping)]
     (.. (js/document.querySelectorAll ".mod,.alt,.ctrl")

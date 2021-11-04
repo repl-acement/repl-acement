@@ -1,5 +1,17 @@
 (ns replacement.structure.wiring
-  "Provide functions to wire up events and components"
+  "Provide functions to go between component part names and their associated code mirrors
+  based on some naming conventions.
+  component part names are keywords such as :foo
+  code mirror names are keywords such as :foo.cm
+  When a component can be repeated (eg in a table) an index is needed for the associated
+  code mirror
+  component part names are keywords such as :foo
+  code mirror names are keywords such as :foo.0.cm
+  We only index the code mirrors because the components are wrapped in a table which don't need
+  IDs but code mirrors are in a flat name space.
+
+  Hmmm - now I write this down, maybe we should add IDs for components and keep the
+  component and CMs indexed together? Then no need for any conventions!!"
   (:require [clojure.string :as string]))
 
 (defn comp-name->cm-name

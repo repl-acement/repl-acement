@@ -2,7 +2,7 @@
   (:require
     [re-frame.core :as re-frame]
     [replacement.ui.events :as events]
-    [replacement.ui.main-view :as main-view]
+    [replacement.ui.page-view :as main-view]
     [replacement.ui.subs]))
 
 (defn dev-setup []
