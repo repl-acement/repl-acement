@@ -27,6 +27,7 @@
                                  md-icon-button input-textarea h-split v-split popover-anchor-wrapper
                                  popover-content-wrapper title flex-child-style p slider]]
             [re-com.splits :refer [hv-split-args-desc]]
+            [re-com.tabs :refer [vertical-pill-tabs]]
             [re-frame.core :as re-frame]
             [replacement.forms.events.defn :as defn-events]
             [replacement.structure.wiring :as wiring]
@@ -152,9 +153,10 @@
 
 (defn result-box []
   [v-box :children
-   [[title :level :level2 :label  "REPL Output"]
+   [[title :level :level2 :label "REPL Output"]
     (let [results (re-frame/subscribe [::subs/latest-result])]
       (fn []
+        (prn :result-box (:val @results))
         (when @results [result-view @results])))]])
 
 (defn form-box []
@@ -172,8 +174,7 @@
   ([part-name label-text]
    (component-part part-name label-text 0 0))
   ([part-name label-text arity-index n-arities]
-   [h-box
-    :gap "10px" :align :center
+   [h-box :gap "5px" :align :center
     :children
     [[label :width "110px" :label (prepend-index arity-index n-arities label-text)]
      (if (zero? n-arities)
@@ -182,31 +183,31 @@
 
 (defn defn-arity-parts
   [arity-index n-arities]
-  [v-box
-   :gap "10px"
+  [v-box :gap "5px"
    :children
-   [[line :color "#f4f4f4"]
+   [[line :color "#D8D8D8"]
     [component-part :defn.params "Parameters" arity-index n-arities]
-    [line :color "#f4f4f4"]
+    [line :color "#D8D8D8"]
     [component-part :defn.prepost "Pre/Post" arity-index n-arities]
-    [line :color "#f4f4f4"]
+    [line :color "#D8D8D8"]
     [component-part :defn.body "Body" arity-index n-arities]]])
 
 (defn defn-parts
   []
   (let [arity-data (re-frame/subscribe [::subs/fn-arity-data])]
     [v-box
-     :gap "10px"                                            ;:align :start :justify :center
+     :gap "5px"
      :children
-     [[component-part :defn.name "Name"]
-      [line :color "#f4f4f4"]
-      [component-part :defn.docstring "Docstring"]
-      [line :color "#f4f4f4"]
-      [component-part :defn.meta "Attributes"]
-      (let [n-arities (count @arity-data)]
-        (map (fn [arity-index]
-               (defn-arity-parts arity-index n-arities))
-             (range n-arities)))]]))
+     (into [[title :level :level2 :label "Function Parts"]
+            [component-part :defn.name "Name"]
+            [line :color "#D8D8D8"]
+            [component-part :defn.docstring "Docstring"]
+            [line :color "#D8D8D8"]
+            [component-part :defn.meta "Attributes"]]
+           (let [n-arities (count @arity-data)]
+             (map (fn [arity-index]
+                    (defn-arity-parts arity-index n-arities))
+                  (range n-arities))))]))
 
 (defn linux? []
   (some? (re-find #"(Linux)|(X11)" js/navigator.userAgent)))
@@ -229,18 +230,35 @@
                   "Mod"   "⌘"})))
 
 (defn defn-form []
-  [v-box
-   :gap "10px"
+  [v-box :gap "5px"
    :children
-   [[form-box]
-    [result-box]]])
+   [[form-box]]])
+
+;[vertical-pill-tabs ... ]
+(defn var-list []
+  (let [selected-tag-type (r/atom :ranker)
+        ns-vars           [{:id :promote :label "promote"}
+                           {:id :ranker :label "ranker"}
+                           {:id :index :label "index"}]]
+    [v-box :gap "5px"
+     :children
+     [[vertical-pill-tabs
+       :model selected-tag-type
+       :tabs ns-vars
+       :on-change #(reset! selected-tag-type %)]]]))
+
+(defn ns-view []
+  [v-box :gap "5px"
+   :children
+   [[title :level :level2 :label "Namespace"]
+    [var-list]]])
 
 (defn defn-view []
-  [h-box
-   :gap "100px" :padding "10px"
+  [h-box :gap "75px" :padding "5px"
    :children
-   [[defn-form]
-    [line :color "#f4f4f4"]
+   [[ns-view]
+    [defn-form]
+    [line :color "#D8D8D8"]
     [defn-parts]]])
 
 (defn render []
