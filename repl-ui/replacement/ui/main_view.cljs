@@ -206,7 +206,6 @@
               [:tr.border-t [:td]]
               [component-part :defn.meta "Attributes"]]]]
            (let [n-arities (count @arity-data)]
-             ;(prn :defn-parts :arity-data @arity-data :n-arities n-arities)
              (map (fn [arity-index]
                     (defn-arity-parts arity-index n-arities))
                   (range n-arities))))]))
