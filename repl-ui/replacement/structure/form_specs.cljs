@@ -20,3 +20,9 @@
     :var-name symbol?
     :docstring (s/? string?)
     :init-expr (s/? any?)))
+
+(s/def ::form
+  (s/or :ns ::ns-form
+        :def ::def
+        :defn ::defn
+        :expr list?))

@@ -30,6 +30,7 @@
             [re-com.tabs :refer [vertical-pill-tabs]]
             [re-frame.core :as re-frame]
             [replacement.forms.events.defn :as defn-events]
+            [replacement.forms.parser.parse :as form-parser]
             [replacement.structure.wiring :as wiring]
             [replacement.ui.remote-prepl :as prepl]
             [replacement.ui.subs :as subs]
@@ -161,7 +162,7 @@
 
 (defn form-box []
   [v-box :children
-   [[title :level :level2 :label "Function"]
+   [[title :level :level2 :label "Ranker"]                  ;; Todo subscribe on Name
     [editable-fn-form]]])
 
 (defn prepend-index
@@ -234,12 +235,28 @@
    :children
    [[form-box]]])
 
-;[vertical-pill-tabs ... ]
-(defn var-list []
-  (let [selected-tag-type (r/atom :ranker)
-        ns-vars           [{:id :promote :label "promote"}
-                           {:id :ranker :label "ranker"}
-                           {:id :index :label "index"}]]
+(defn type-label
+  [ref-type]
+  (condp = ref-type
+    :def "∈"
+    :defn "λ"
+    "⸮"))
+
+(defn var-list
+  [var-data]
+  (let [this-ns           (first var-data)                  ;; use for highlighting?
+        refs              (second var-data)
+        id+types          (map (fn [[_ ref-name ref-type _]]
+                                 [ref-name ref-type]) refs)
+        selected-tag-type (r/atom (keyword (ffirst id+types)))
+        ns-vars           (mapv (fn [[ref-name ref-type]]
+                                  {:id    (keyword ref-name)
+                                   :label [h-box :align :center
+                                           :children
+                                           [[label :width "20px" :style {:color      "grey"
+                                                                            :text-align "right"} :label (type-label ref-type)]
+                                            [:span {:style {:color "black"}} (str " " ref-name)]]]})
+                                id+types)]
     [v-box :gap "5px"
      :children
      [[vertical-pill-tabs
@@ -247,11 +264,19 @@
        :tabs ns-vars
        :on-change #(reset! selected-tag-type %)]]]))
 
+(defn format-ns
+  [ns-text]
+  [label :style {:color "grey"} :label ns-text])
+
 (defn ns-view []
-  [v-box :gap "5px"
-   :children
-   [[title :level :level2 :label "Namespace"]
-    [var-list]]])
+  (let [forms-read (form-parser/whole-ns form-parser/sample)
+        conformed  (form-parser/parse-vars forms-read)
+        enriched   (form-parser/enrich conformed)
+        this-ns    (first enriched)]
+    [v-box :gap "5px"
+     :children
+     [[title :level :level2 :label (format-ns this-ns)]
+      (var-list enriched)]]))
 
 (defn defn-view []
   [h-box :gap "75px" :padding "5px"

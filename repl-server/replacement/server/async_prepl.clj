@@ -1,12 +1,15 @@
 (ns replacement.server.async-prepl
   (:require
     [clojure.core.async :as a]
-    [clojure.core.server :refer [start-server]])
+    [clojure.core.server :refer [start-server]]
+    [clojure.tools.reader.reader-types :as readers]
+    [clojure.tools.reader :as reader])
   (:import (java.io StringReader OutputStreamWriter BufferedReader InputStreamReader)
            (clojure.lang LineNumberingPushbackReader DynamicClassLoader)
            (org.apache.commons.codec.binary Hex)
            (java.security MessageDigest)
-           (java.net ServerSocket Socket)))
+           (java.net ServerSocket Socket)
+           (clojure.tools.reader.reader_types SourceLoggingPushbackReader)))
 
 (set! *warn-on-reflection* true)
 (set! *default-data-reader-fn* tagged-literal)
