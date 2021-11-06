@@ -30,6 +30,7 @@
             [re-com.tabs :refer [vertical-pill-tabs]]
             [re-frame.core :as re-frame]
             [replacement.forms.events.defn :as defn-events]
+            [replacement.forms.events.whole-ns :as whole-ns]
             [replacement.forms.parser.parse :as form-parser]
             [replacement.structure.wiring :as wiring]
             [replacement.ui.remote-prepl :as prepl]
@@ -254,7 +255,7 @@
                                    :label [h-box :align :center
                                            :children
                                            [[label :width "20px" :style {:color      "grey"
-                                                                            :text-align "right"} :label (type-label ref-type)]
+                                                                         :text-align "right"} :label (type-label ref-type)]
                                             [:span {:style {:color "black"}} (str " " ref-name)]]]})
                                 id+types)]
     [v-box :gap "5px"
@@ -266,17 +267,19 @@
 
 (defn format-ns
   [ns-text]
+  ;; TODO highlight last part of the ns name
   [label :style {:color "grey"} :label ns-text])
 
 (defn ns-view []
-  (let [forms-read (form-parser/whole-ns form-parser/sample)
-        conformed  (form-parser/parse-vars forms-read)
-        enriched   (form-parser/enrich conformed)
-        this-ns    (first enriched)]
+  (let [forms-read   (form-parser/whole-ns form-parser/sample)
+        un+conformed (form-parser/parse-vars forms-read)
+        enriched     (form-parser/enrich un+conformed)
+        this-ns      (first enriched)]
+    (re-frame/dispatch [::whole-ns/ns-forms enriched])
     [v-box :gap "5px"
      :children
      [[title :level :level2 :label (format-ns this-ns)]
-      (var-list enriched)]]))
+      #_(var-list enriched)]]))
 
 (defn defn-view []
   [h-box :gap "75px" :padding "5px"

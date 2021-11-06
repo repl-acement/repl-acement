@@ -16,7 +16,16 @@
 
 (defn parse-vars
   [forms]
-  (map #(s/conform ::form-specs/form %) forms))
+  (map (fn [form]
+         (prn :form form)
+         (let [conformed (s/conform ::form-specs/form form)
+               _ (prn :conformed conformed)
+               unformed  (s/unform ::form-specs/form conformed)
+               _ (prn :unformed unformed)
+               ]
+           {:conformed conformed
+            :unformed  unformed}))
+       forms))
 
 (defn enrich-def
   [ns-name [type {:keys [var-name] :as data}]]
@@ -28,20 +37,22 @@
     [ns-name var-name type data]))
 
 (defn- enrich*
-  [{:keys [ns-args]} conformed-forms]
-  (let [ns-name (:ns-name ns-args)]
+  [conformed-forms]
+  (prn :enrich* conformed-forms)
+  (let [ns-name (-> conformed-forms first second (get-in [:ns-args :ns-name]))]
     [ns-name (mapv
                (fn [form]
                  (cond
                    (= :def (first form)) (enrich-def ns-name form)
                    (= :defn (first form)) (enrich-defn ns-name form)
                    :else form))
-               conformed-forms)]))
+               (rest conformed-forms))]))
 
 (defn enrich
   [conformed-list]
-  (enrich* (-> conformed-list first last)
-           (rest conformed-list)))
+  (->> conformed-list
+       (map #(:conformed %))
+       (enrich*)))
 
 (def sample "(ns repl.ace.ment)
 

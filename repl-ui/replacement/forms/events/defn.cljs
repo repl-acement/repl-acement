@@ -224,15 +224,6 @@
                           (re-frame/dispatch [::fn-arity-n-update-cms data index]))
                         arity-data))))
 
-(reg-event-db
-  ::set-fn-id
-  (fn [db [_ whole-form-text]]
-    (let [{:keys [defn-args]} (->> whole-form-text
-                                   (rdr/read-string)
-                                   (s/conform ::form-specs/defn))
-          {:keys [fn-name]} (split-defn-args defn-args)]
-      (assoc db :fn-id (gensym fn-name)))))
-
 (reg-event-fx
   ::transact-whole-defn-form
   (fn [{:keys [db]} [_ whole-form-text]]
