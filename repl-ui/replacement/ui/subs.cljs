@@ -135,3 +135,15 @@
   ::fn-arity-data
   (fn [db]
     (:arity-data db)))
+
+(reg-sub
+  ::the-ns-name
+  (fn [db]
+    (:the-ns-name db)))
+
+(reg-sub
+  ::id-index
+  (fn [db [_ ns-name]]
+    (prn ::id-index :results (filter #(= (:ns (val %)) ns-name) (:id-index db)))
+    (filter #(= (:ns (val %)) ns-name) (:id-index db))))
+

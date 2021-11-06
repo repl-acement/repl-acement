@@ -38,7 +38,6 @@
 
 (defn- enrich*
   [conformed-forms]
-  (prn :enrich* conformed-forms)
   (let [ns-name (-> conformed-forms first second (get-in [:ns-args :ns-name]))]
     [ns-name (mapv
                (fn [form]

@@ -245,25 +245,21 @@
 
 (defn var-list
   [var-data]
-  (let [this-ns           (first var-data)                  ;; use for highlighting?
-        refs              (second var-data)
-        id+types          (map (fn [[_ ref-name ref-type _]]
-                                 [ref-name ref-type]) refs)
-        selected-tag-type (r/atom (keyword (ffirst id+types)))
-        ns-vars           (mapv (fn [[ref-name ref-type]]
-                                  {:id    (keyword ref-name)
-                                   :label [h-box :align :center
-                                           :children
-                                           [[label :width "20px" :style {:color      "grey"
-                                                                         :text-align "right"} :label (type-label ref-type)]
-                                            [:span {:style {:color "black"}} (str " " ref-name)]]]})
-                                id+types)]
+  (let [id+names     (map (fn [[id ns+var-name]]
+                            [id (:name ns+var-name)]) var-data)
+        selected-var (r/atom (ffirst id+names))
+        ns-vars      (mapv (fn [[id name]]
+                             {:id    id
+                              :label name})
+                           id+names)]
     [v-box :gap "5px"
      :children
      [[vertical-pill-tabs
-       :model selected-tag-type
+       :model selected-var
        :tabs ns-vars
-       :on-change #(reset! selected-tag-type %)]]]))
+       :on-change (fn [var-id]
+                    (re-frame/dispatch [::whole-ns/visible-form var-id])
+                    (reset! selected-var var-id))]]]))
 
 (defn format-ns
   [ns-text]
@@ -271,17 +267,24 @@
   [label :style {:color "grey"} :label ns-text])
 
 (defn ns-view []
+  (let [the-ns-name (re-frame/subscribe [::subs/the-ns-name])
+        ns-data     (re-frame/subscribe [::subs/id-index @the-ns-name])]
+    (prn :ns-name @the-ns-name :ns-data @ns-data)
+    (when (seq @ns-data)
+      [v-box :gap "5px"
+       :children
+       [[title :level :level2 :label (format-ns @the-ns-name)] ;; TODO Add back the type
+        (var-list @ns-data)]])))
+
+(defn set-ns-data
+  []
   (let [forms-read   (form-parser/whole-ns form-parser/sample)
         un+conformed (form-parser/parse-vars forms-read)
-        enriched     (form-parser/enrich un+conformed)
-        this-ns      (first enriched)]
-    (re-frame/dispatch [::whole-ns/ns-forms enriched])
-    [v-box :gap "5px"
-     :children
-     [[title :level :level2 :label (format-ns this-ns)]
-      #_(var-list enriched)]]))
+        enriched     (form-parser/enrich un+conformed)]
+    (re-frame/dispatch [::whole-ns/ns-forms enriched])))
 
 (defn defn-view []
+  (set-ns-data)
   [h-box :gap "75px" :padding "5px"
    :children
    [[ns-view]
