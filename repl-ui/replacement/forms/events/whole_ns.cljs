@@ -12,10 +12,11 @@
     [zprint.core :refer [zprint-file-str]]))
 
 (defn- ref-data->ref-id-data
-  [{:keys [ns ref-name] :as ref-data}]
+  [{:keys [ns ref-name ref-type] :as ref-data}]
   (let [ref-id (str (random-uuid))]
     {ref-id    ref-data
      :id-index {ref-id {:ns   ns
+                        :type ref-type
                         :name ref-name}}}))
 
 (reg-event-db
@@ -43,10 +44,3 @@
       (apply merge db form-data
              {:id-index (merge id-index index-update)}
              (map #(dissoc % :id-index) ref-id-data)))))
-
-(reg-event-db
-  ::visible-form
-  (fn [db [_ var-id]]
-
-    (prn :id var-id :data (get db var-id))))
-

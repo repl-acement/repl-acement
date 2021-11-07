@@ -134,16 +134,13 @@
 
 (defn editable-fn-form []
   (let [!mount (fn [comp]
-                 (let [doc       (str (rand-nth doc-options))
-                       formatted (zprint-file-str doc "::fn-whole-update")
-                       cm-name   (wiring/comp-name->cm-name :defn.form)
-                       !view     (EditorView. #js {:state    (.create EditorState #js {:doc        formatted
+                 (let [cm-name   (wiring/comp-name->cm-name :defn.form)
+                       !view     (EditorView. #js {:state    (.create EditorState #js {:doc        ""
                                                                                        :extensions extensions})
                                                    :parent   (rdom/dom-node comp)
                                                    :dispatch (fn [tx]
                                                                (re-frame/dispatch [::defn-events/fn-whole-form-tx cm-name tx]))})]
-                   (re-frame/dispatch-sync [::defn-events/set-cm+name !view cm-name])
-                   (re-frame/dispatch-sync [::defn-events/transact-whole-defn-form formatted])))]
+                   (re-frame/dispatch-sync [::defn-events/set-cm+name !view cm-name])))]
     [:div {:ref !mount}]))
 
 (defn result-view [{:keys [val]}]
@@ -162,9 +159,10 @@
         (when @results [result-view @results])))]])
 
 (defn form-box []
-  [v-box :children
-   [[title :level :level2 :label "Ranker"]                  ;; Todo subscribe on Name
-    [editable-fn-form]]])
+  (let [form (re-frame/subscribe [::subs/the-defn-form])]
+    [v-box :children
+     [[title :level :level2 :label @form]
+      [editable-fn-form]]]))
 
 (defn prepend-index
   [arity-index n-arities label]
@@ -232,48 +230,53 @@
                   "Mod"   "⌘"})))
 
 (defn defn-form []
-  [v-box :gap "5px"
+  [v-box :gap "5px" :width "500px"
    :children
    [[form-box]]])
 
 (defn type-label
   [ref-type]
   (condp = ref-type
-    :def "∈"
+    :def "\uD83C\uDC6B"
     :defn "λ"
     "⸮"))
 
 (defn var-list
   [var-data]
-  (let [id+names     (map (fn [[id ns+var-name]]
-                            [id (:name ns+var-name)]) var-data)
-        selected-var (r/atom (ffirst id+names))
-        ns-vars      (mapv (fn [[id name]]
+  (let [selected-var (r/atom (first (last var-data)))
+        ns-vars      (mapv (fn [[id data]]
                              {:id    id
-                              :label name})
-                           id+names)]
+                              :type  (:type data)
+                              :label [h-box :align :center :children
+                                      [[label :width "15px" :label (type-label (:type data))]
+                                       [label :label (:name data)]]]})
+                           var-data)
+        type-mapping (apply merge (map #(hash-map (:id %) (:type %)) ns-vars))]
     [v-box :gap "5px"
      :children
      [[vertical-pill-tabs
        :model selected-var
        :tabs ns-vars
        :on-change (fn [var-id]
-                    (re-frame/dispatch [::whole-ns/visible-form var-id])
+                    (let [var-type (type-mapping var-id)]
+                      (if (= :defn var-type)
+                        (re-frame/dispatch [::defn-events/set-fn-view var-id])))
                     (reset! selected-var var-id))]]]))
 
 (defn format-ns
-  [ns-text]
-  ;; TODO highlight last part of the ns name
-  [label :style {:color "grey"} :label ns-text])
+  [the-ns-name]
+  (let [[_ first-part last-part] (re-find #"(.*)\.(.*)" (str the-ns-name))]
+    [h-box :align :center :children
+     [[label :style {:color "grey" :font-size :smaller} :label (str first-part ".")]
+      [label :style {:color "blue" :font-weight :bolder} :label last-part]]]))
 
 (defn ns-view []
   (let [the-ns-name (re-frame/subscribe [::subs/the-ns-name])
         ns-data     (re-frame/subscribe [::subs/id-index @the-ns-name])]
-    (prn :ns-name @the-ns-name :ns-data @ns-data)
     (when (seq @ns-data)
       [v-box :gap "5px"
        :children
-       [[title :level :level2 :label (format-ns @the-ns-name)] ;; TODO Add back the type
+       [[title :level :level2 :label (format-ns @the-ns-name)]
         (var-list @ns-data)]])))
 
 (defn set-ns-data

@@ -142,8 +142,12 @@
     (:the-ns-name db)))
 
 (reg-sub
+  ::the-defn-form
+  (fn [db]
+    (:the-defn-form db)))
+
+(reg-sub
   ::id-index
   (fn [db [_ ns-name]]
-    (prn ::id-index :results (filter #(= (:ns (val %)) ns-name) (:id-index db)))
     (filter #(= (:ns (val %)) ns-name) (:id-index db))))
 

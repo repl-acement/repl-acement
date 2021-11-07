@@ -134,6 +134,7 @@
 (reg-event-fx
   ::fn-fixed-items-update-cms
   (fn [{:keys [db]} [_]]
+    (prn ::fn-fixed-items-update-cms :called)
     (let [cm-keys          (map wiring/comp-name->cm-name defn-common-parts)
           defn-data        (defn-data->properties db)
           cms-with-changes (reduce (partial update-cm-states db defn-data) [] cm-keys)]
@@ -158,6 +159,16 @@
         fn-properties {:defn.text         text
                        :defn.conformed    conformed
                        :defn.explain-data explain-data
+                       :defn.unformed     unformed}
+        fn-data       (split-defn-args (:defn-args conformed))]
+    (merge fn-properties fn-data)))
+
+(defn- conformed->spec-data
+  [conformed]
+  (let [unformed      (or (= s/invalid? conformed) (s/unform ::form-specs/defn conformed))
+        fn-properties {:defn.text         (pr-str unformed)
+                       :defn.conformed    conformed
+                       :defn.explain-data nil
                        :defn.unformed     unformed}
         fn-data       (split-defn-args (:defn-args conformed))]
     (merge fn-properties fn-data)))
@@ -211,10 +222,9 @@
   (fn [{:keys [db]} [_]]
     (let [cm         (get-in db [:defn.form.cm :cm])
           whole-text (whole-form-updated db)
-          updates    (text->spec-data whole-text)
-          formatted  (zprint-file-str whole-text ::set-part-in-whole)]
+          updates    (text->spec-data whole-text)]
       {:db               (merge db updates)
-       ::fn-whole-update [cm formatted]})))
+       ::fn-whole-update [cm whole-text]})))
 
 (reg-fx
   ::fn-parts-update
@@ -230,3 +240,29 @@
     (let [updates (text->spec-data whole-form-text)]
       {:db               (merge db updates)
        ::fn-parts-update updates})))
+
+(reg-fx
+  ::fn-view-update
+  (fn [[cm whole-text {:keys [arity-data]}]]
+    (prn :whole-text whole-text)
+    (let [tx (->> (zprint-file-str whole-text ::fn-view-update)
+                  (replacement-tx cm))]
+      (update-cm cm tx))
+    (re-frame/dispatch [::fn-fixed-items-update-cms])
+    (doall (map-indexed (fn [index data]
+                          (re-frame/dispatch [::fn-arity-n-update-cms data index]))
+                        arity-data))))
+
+(reg-event-fx
+  ::set-fn-view
+  (fn [{:keys [db]} [_ var-id]]
+    (let [cm             (get-in db [:defn.form.cm :cm])
+          var-data       (db var-id)
+          conformed-data (:ref-conformed var-data)
+          var-name       (:ref-name var-data)
+          defaults       {:meta nil :docstring nil}         ;; lift these so others can use?
+          updates        (merge defaults (conformed->spec-data conformed-data))
+          text           (:defn.text updates)]
+      {:db              (merge db {:the-defn-form var-name} updates)
+       ::fn-view-update [cm text updates]})))
+
