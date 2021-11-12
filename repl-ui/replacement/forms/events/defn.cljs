@@ -244,7 +244,6 @@
 (reg-fx
   ::fn-view-update
   (fn [[cm whole-text {:keys [arity-data]}]]
-    (prn :whole-text whole-text)
     (let [tx (->> (zprint-file-str whole-text ::fn-view-update)
                   (replacement-tx cm))]
       (update-cm cm tx))

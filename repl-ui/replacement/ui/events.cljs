@@ -7,6 +7,7 @@
     [re-frame.core :as re-frame :refer [reg-event-db reg-event-fx reg-fx]]
     [replacement.ui.helpers :refer [js->cljs]]
     [replacement.ui.ws :as ws]
+    [replacement.xform.aspec :as aspec]
     [replacement.specs.messages :as message-specs]
     [replacement.specs.user :as user-specs]
     [taoensso.sente :as sente]
@@ -38,13 +39,17 @@
                              :else :unknown-os)]
            {:os os :key-bindings (key-bindings os)}))
 
+(def default-transforms
+  {:xforms aspec/sample-xform-declaration})
+
 ; --- Events ---
 (reg-event-db
   ::initialize-db
   (fn [_ _]
     (merge {::name             "repl-acement"
             ::other-visibility true}
-           os-data)))
+           os-data
+           default-transforms)))
 
 (reg-event-db
   ::network-status

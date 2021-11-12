@@ -1,7 +1,6 @@
 (ns replacement.server.parser
   (:require [clojure.spec.alpha :as s]
             [clojure.core.specs.alpha :as core-specs]
-            [editscript.core :as e]
             [replacement.server.async-prepl :as ap]))
 
 (s/def ::ns-form

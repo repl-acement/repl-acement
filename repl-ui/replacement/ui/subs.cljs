@@ -151,3 +151,8 @@
   (fn [db [_ ns-name]]
     (filter #(= (:ns (val %)) ns-name) (:id-index db))))
 
+(reg-sub
+  ::xforms
+  (fn [db]
+    (:xforms db)))
+

@@ -17,12 +17,8 @@
 (defn parse-vars
   [forms]
   (map (fn [form]
-         (prn :form form)
          (let [conformed (s/conform ::form-specs/form form)
-               _ (prn :conformed conformed)
-               unformed  (s/unform ::form-specs/form conformed)
-               _ (prn :unformed unformed)
-               ]
+               unformed  (s/unform ::form-specs/form conformed)]
            {:conformed conformed
             :unformed  unformed}))
        forms))
@@ -61,12 +57,14 @@
 (def theme (atom :day))
 
 (defn set-theme
+  \"Set the default theme\"
   [new-theme]
+  {:pre [(themes new-theme)]}
   (swap! theme new-theme))
 
 (defn apply-theme
-  ([output]
-   (apply-theme output :terminal))
-  ([output device]
-   (str \" To be implemented \" output \" for \" device)))")
+  {:api-version \"0.1.0\"
+   :stub true}
+  [output device]
+  (str \" To be implemented \" output \" for \" device))")
 

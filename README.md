@@ -2,12 +2,15 @@
 
 # REPL-acement
 
-A Clojure server exposing a shared PREPL, accessible via a web socket.
+Goal is to accept changes to the data we call code, persist the changes and offer a variety of feedback.
 
-It exposes:
-- [X] JVM PREPL output
-- [X] keystrokes as input per user
-- [ ] `clj-kondo` analysis data
+The server part exposes a shared PREPL, accessible via a web socket.
+
+A limited set of commands are supported on the socket:
+
+- [ ] save
+- [ ] eval
+- [ ] xform - see [AOP](AOP.md) document
 
 ## Usage
 
@@ -33,9 +36,12 @@ In all cases, a PREPL socket server will be started locally.
  
 ## Planned features
 
-- [ ] nodeJS PREPL
+### Local code emission:
 
-## Planned examples 
-- [ ] distribution
-- [ ] hosting
-- [ ] networking
+For all or some subset of the code
+
+- [ ] export to file system
+- [ ] export to produce a JAR
+- [ ] export to produce a GRAALVM image
+
+

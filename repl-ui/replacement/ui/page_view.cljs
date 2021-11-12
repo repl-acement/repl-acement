@@ -23,7 +23,7 @@
             [nextjournal.clojure-mode.test-utils :as test-utils]
             [reagent.core :as r]
             [reagent.dom :as rdom]
-            [re-com.core :refer [h-box v-box box button gap line scroller border label input-text md-circle-icon-button
+            [re-com.core :refer [h-box v-box checkbox box button gap line scroller border label input-text md-circle-icon-button
                                  md-icon-button input-textarea h-split v-split popover-anchor-wrapper
                                  popover-content-wrapper title flex-child-style p slider]]
             [re-com.splits :refer [hv-split-args-desc]]
@@ -134,12 +134,12 @@
 
 (defn editable-fn-form []
   (let [!mount (fn [comp]
-                 (let [cm-name   (wiring/comp-name->cm-name :defn.form)
-                       !view     (EditorView. #js {:state    (.create EditorState #js {:doc        ""
-                                                                                       :extensions extensions})
-                                                   :parent   (rdom/dom-node comp)
-                                                   :dispatch (fn [tx]
-                                                               (re-frame/dispatch [::defn-events/fn-whole-form-tx cm-name tx]))})]
+                 (let [cm-name (wiring/comp-name->cm-name :defn.form)
+                       !view   (EditorView. #js {:state    (.create EditorState #js {:doc        ""
+                                                                                     :extensions extensions})
+                                                 :parent   (rdom/dom-node comp)
+                                                 :dispatch (fn [tx]
+                                                             (re-frame/dispatch [::defn-events/fn-whole-form-tx cm-name tx]))})]
                    (re-frame/dispatch-sync [::defn-events/set-cm+name !view cm-name])))]
     [:div {:ref !mount}]))
 
@@ -279,6 +279,32 @@
        [[title :level :level2 :label (format-ns @the-ns-name)]
         (var-list @ns-data)]])))
 
+(defn transformers []
+  (let [prn-ticked? (r/atom false)
+        tap-ticked? (r/atom false)]
+    ;; read this from config
+    [h-box :align :center :gap "15px"
+     :children
+     [[checkbox
+       :label "Print params"
+       :model prn-ticked?
+       :on-change (fn [setting]
+                    (reset! prn-ticked? setting)
+                    (re-frame/dispatch [::whole-ns/defn-transforms-toggle :defn.params.prn setting]))]
+      [checkbox
+       :label "Tap params"
+       :model tap-ticked?
+       :on-change (fn [setting]
+                    (reset! tap-ticked? setting)
+                    (re-frame/dispatch [::whole-ns/defn-transforms-toggle :defn.params.tap setting]))]]]))
+
+(defn transform-options []
+  [h-box :align :center :gap "20px"
+   :children
+   [[title :level :level2 :label "Transformations"]
+    [gap :size "10px"]
+    [transformers]]])
+
 (defn set-ns-data
   []
   (let [forms-read   (form-parser/whole-ns form-parser/sample)
@@ -287,13 +313,18 @@
     (re-frame/dispatch [::whole-ns/ns-forms enriched])))
 
 (defn defn-view []
+  ;; TODO - make reactive as forms are transformed per ns
   (set-ns-data)
-  [h-box :gap "75px" :padding "5px"
+  [v-box :gap "20px" :justify :center :padding "15px"
    :children
-   [[ns-view]
-    [defn-form]
+   [[transform-options]
     [line :color "#D8D8D8"]
-    [defn-parts]]])
+    [h-box :align :start :gap "75px" :padding "5px"
+     :children
+     [[ns-view]
+      [defn-form]
+      [line :color "#D8D8D8"]
+      [defn-parts]]]]])
 
 (defn render []
   (rdom/render [defn-view] (js/document.getElementById "form-editor"))
