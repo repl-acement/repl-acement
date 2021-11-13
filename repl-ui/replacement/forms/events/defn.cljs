@@ -260,8 +260,8 @@
           conformed-data (:ref-conformed var-data)
           var-name       (:ref-name var-data)
           defaults       {:meta nil :docstring nil}         ;; lift these so others can use?
-          updates        (merge defaults (conformed->spec-data conformed-data))
-          text           (:defn.text updates)]
-      {:db              (merge db {:the-defn-form var-name} updates)
-       ::fn-view-update [cm text updates]})))
+          updates        (merge defaults (conformed->spec-data conformed-data))]
+      {:db              (merge db {:the-defn-form   var-name
+                                   :visible-form-id var-id} updates)
+       ::fn-view-update [cm (:defn.text updates) updates]})))
 

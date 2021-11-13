@@ -1,16 +1,11 @@
 (ns replacement.forms.events.whole-ns
   "After reading in a namespace, events are created for managing the view"
   (:require
-    [cljs.tools.reader.edn :as rdr]
     [clojure.core.async]
-    [clojure.spec.alpha :as s]
     [re-frame.core :refer [reg-event-db reg-event-fx reg-fx]]
-    [replacement.structure.core-fn-specs :as core-fn-specs]
-    [replacement.structure.form-specs :as form-specs]
+    [replacement.forms.events.defn :as defn-events]
     [replacement.xform.defn :as xform-defn]
     [replacement.ui.helpers :refer [js->cljs]]
-    [replacement.structure.wiring :as wiring]
-    [zprint.core :refer [zprint-file-str]]
     [re-frame.core :as re-frame]))
 
 (defn- ref-data->ref-id-data
@@ -49,21 +44,22 @@
 
 (defn apply-join
   [forms-from-ns joins]
-  (doall (-> (map (fn [[form-id {:keys [ns type]}]]
-                    (reduce (fn [matching-forms {:keys [ns-regex form-types]}]
-                              (if (and (re-find ns-regex (str ns))
-                                       (some form-types [type]))
-                                (conj matching-forms form-id)
-                                matching-forms))
-                            [] joins))
-                  forms-from-ns)
-             (flatten))))
+  (->> (doall (map (fn [[form-id {:keys [ns type]}]]
+                     (reduce (fn [matching-forms {:keys [ns-regex form-types]}]
+                               (if (and (re-find ns-regex (str ns))
+                                        (some form-types [type]))
+                                 (conj matching-forms form-id)
+                                 matching-forms))
+                             [] joins))
+                   forms-from-ns))
+       (flatten)))
 
 
-(defn apply-defn-transforms [[defn-form-id defn-form] {:keys [actions meta]}]
-  (let [xformed (reduce (fn [transformed-form action]
-                          (xform-defn/xform-conformed-defn-data transformed-form action meta))
-                        (:ref-conformed defn-form) (:apply actions))
+(defn apply-defn-transforms
+  [[defn-form-id defn-form] {:keys [actions meta]}]
+  (let [xformed           (reduce (fn [transformed-form action]
+                                    (xform-defn/xform-conformed-defn-data transformed-form action meta))
+                                  (:ref-conformed defn-form) (:apply actions))
         updated-defn-form (assoc defn-form :ref-conformed xformed)]
     (re-frame/dispatch [::update-form-by-id defn-form-id updated-defn-form])))
 
@@ -73,25 +69,39 @@
     (-> (assoc db id updated-form)
         (update-in [:form-history id] conj updated-form))))
 
-(reg-event-db
-  ::defn-transforms-toggle
-  (fn [db [_ xform-key enabled?]]
-    ;; TODO -- rollback history to remove the transforms when params are toggled
-    ;; can get more subtle but just reverting works for now
+(reg-fx
+  ::defn-transforms-on
+  (fn [db]
     (let [the-ns-name      (:the-ns-name db)
           ns-forms         (filter #(= (:ns (val %)) the-ns-name) (:id-index db))
-          updated-db       (assoc-in db [:xforms xform-key :enabled?] enabled?)
           active-xforms    (reduce (fn [active-xforms xform-key]
-                                     (let [xform (get-in updated-db [:xforms xform-key])]
+                                     (let [xform (get-in db [:xforms xform-key])]
                                        (if (:enabled? xform)
                                          (conj active-xforms xform)
                                          active-xforms)))
-                                   [] (keys (get-in updated-db [:xforms])))
-          joined-forms+ids (->> (doall (map #(apply-join ns-forms (:joins %)) active-xforms))
+                                   [] (keys (get-in db [:xforms])))
+          joined-forms+ids (->> (doall (map (fn [active-xform]
+                                              (apply-join ns-forms (:joins active-xform)))
+                                            active-xforms))
                                 (flatten)
                                 (map (fn [form-id]
                                        [form-id (db form-id)])))]
       (doall (map (fn [xform]
                     (doall (map #(apply-defn-transforms % xform) joined-forms+ids)))
-                  active-xforms))
-      updated-db)))
+                  active-xforms)))
+    (re-frame/dispatch [::defn-events/set-fn-view (:visible-form-id db)])))
+
+(reg-fx
+  ::defn-transforms-off
+  (fn [db]))
+
+;; TODO -- rollback history to remove the transforms when params are toggled
+;; TODO -- retain other edits! Simply reverting only works for demo purposes
+(reg-event-fx
+  ::defn-transforms-toggle
+  (fn [{:keys [db]} [_ xform-key enabled?]]
+    (let [updated-db (assoc-in db [:xforms xform-key :enabled?] enabled?)]
+      (merge {:db updated-db}
+             (if enabled?
+               {::defn-transforms-on updated-db}
+               {::defn-transforms-off updated-db})))))

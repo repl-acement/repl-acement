@@ -4,7 +4,7 @@
             [cljs.spec.alpha :as s]
             [replacement.structure.form-specs :as form-specs]))
 
-(defn whole-ns
+(defn read-whole-ns
   [ns-text]
   (let [EOF    :EOF
         reader (readers/source-logging-push-back-reader ns-text)]
@@ -14,7 +14,7 @@
                 (conj forms form)))
             [] (repeatedly #(reader/read+string {:eof EOF :read-cond :allow} reader)))))
 
-(defn parse-vars
+(defn whole-ns->forms
   [forms]
   (map (fn [form]
          (let [conformed (s/conform ::form-specs/form form)
@@ -23,31 +23,31 @@
             :unformed  unformed}))
        forms))
 
-(defn enrich-def
+(defn def-reference-data
   [ns-name [type {:keys [var-name] :as data}]]
   [ns-name var-name type data])
 
-(defn enrich-defn
+(defn defn-reference-data
   [ns-name [type {:keys [defn-args] :as data}]]
   (let [var-name (:fn-name defn-args)]
     [ns-name var-name type data]))
 
-(defn- enrich*
+(defn- add-reference-data*
   [conformed-forms]
   (let [ns-name (-> conformed-forms first second (get-in [:ns-args :ns-name]))]
     [ns-name (mapv
                (fn [form]
                  (cond
-                   (= :def (first form)) (enrich-def ns-name form)
-                   (= :defn (first form)) (enrich-defn ns-name form)
+                   (= :def (first form)) (def-reference-data ns-name form)
+                   (= :defn (first form)) (defn-reference-data ns-name form)
                    :else form))
                (rest conformed-forms))]))
 
-(defn enrich
+(defn add-reference-data
   [conformed-list]
   (->> conformed-list
        (map #(:conformed %))
-       (enrich*)))
+       (add-reference-data*)))
 
 (def sample "(ns repl.ace.ment)
 

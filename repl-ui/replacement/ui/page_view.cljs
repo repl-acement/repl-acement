@@ -242,16 +242,16 @@
     "⸮"))
 
 (defn var-list
-  [var-data]
-  (let [selected-var (r/atom (first (last var-data)))
-        ns-vars      (mapv (fn [[id data]]
+  [var-data default-selection]
+  (let [ns-vars      (mapv (fn [[id data]]
                              {:id    id
                               :type  (:type data)
                               :label [h-box :align :center :children
                                       [[label :width "15px" :label (type-label (:type data))]
                                        [label :label (:name data)]]]})
                            var-data)
-        type-mapping (apply merge (map #(hash-map (:id %) (:type %)) ns-vars))]
+        type-mapping (apply merge (map #(hash-map (:id %) (:type %)) ns-vars))
+        selected-var (r/atom default-selection)]
     [v-box :gap "5px"
      :children
      [[vertical-pill-tabs
@@ -270,14 +270,15 @@
      [[label :style {:color "grey" :font-size :smaller} :label (str first-part ".")]
       [label :style {:color "blue" :font-weight :bolder} :label last-part]]]))
 
-(defn ns-view []
-  (let [the-ns-name (re-frame/subscribe [::subs/the-ns-name])
-        ns-data     (re-frame/subscribe [::subs/id-index @the-ns-name])]
+(defn ns-view [the-ns-name]
+  (let [ns-data (re-frame/subscribe [::subs/id-index the-ns-name])
+        default-selection        (first (last @ns-data))]
+    (re-frame/dispatch [::defn-events/set-fn-view default-selection])
     (when (seq @ns-data)
       [v-box :gap "5px"
        :children
-       [[title :level :level2 :label (format-ns @the-ns-name)]
-        (var-list @ns-data)]])))
+       [[title :level :level2 :label (format-ns the-ns-name)]
+        (var-list @ns-data default-selection)]])))
 
 (defn transformers []
   (let [prn-ticked? (r/atom false)
@@ -307,26 +308,36 @@
 
 (defn set-ns-data
   []
-  (let [forms-read   (form-parser/whole-ns form-parser/sample)
-        un+conformed (form-parser/parse-vars forms-read)
-        enriched     (form-parser/enrich un+conformed)]
+  (let [forms-read   (form-parser/read-whole-ns form-parser/sample)
+        un+conformed (form-parser/whole-ns->forms forms-read)
+        enriched     (form-parser/add-reference-data un+conformed)]
     (re-frame/dispatch [::whole-ns/ns-forms enriched])))
 
 (defn defn-view []
-  ;; TODO - make reactive as forms are transformed per ns
-  (set-ns-data)
-  [v-box :gap "20px" :justify :center :padding "15px"
-   :children
-   [[transform-options]
-    [line :color "#D8D8D8"]
-    [h-box :align :start :gap "75px" :padding "5px"
+  (let [the-ns-name (re-frame/subscribe [::subs/the-ns-name])]
+    [v-box :gap "20px" :justify :center :padding "15px"
      :children
-     [[ns-view]
-      [defn-form]
+     [[transform-options]
       [line :color "#D8D8D8"]
-      [defn-parts]]]]])
+      [h-box :align :start :gap "75px" :padding "5px"
+       :children
+       [[ns-view @the-ns-name]
+        [defn-form]
+        [line :color "#D8D8D8"]
+        [defn-parts]]]]]))
+
+(defn default-ns-data
+  []
+  (->> form-parser/sample
+       (form-parser/read-whole-ns)
+       (form-parser/whole-ns->forms)
+       (form-parser/add-reference-data)
+       (conj [::whole-ns/ns-forms])
+       (re-frame/dispatch)))
 
 (defn render []
+  (default-ns-data)                                         ;; TODO obtain from project classpath viewer
+
   (rdom/render [defn-view] (js/document.getElementById "form-editor"))
 
   (let [mapping (key-mapping)]
