@@ -29,6 +29,7 @@
             [re-com.splits :refer [hv-split-args-desc]]
             [re-com.tabs :refer [vertical-pill-tabs]]
             [re-frame.core :as re-frame]
+            [replacement.forms.events.def :as def-events]
             [replacement.forms.events.defn :as defn-events]
             [replacement.forms.events.whole-ns :as whole-ns]
             [replacement.forms.parser.parse :as form-parser]
@@ -89,7 +90,8 @@
 (defn part-edit
   [part-cm-name tx]
   ;(prn :part-edit :part-cm-name part-cm-name :tx tx)
-  (re-frame/dispatch [::defn-events/part-edit part-cm-name tx]))
+  (re-frame/dispatch [::defn-events/part-edit part-cm-name tx])
+  (re-frame/dispatch [::def-events/part-edit part-cm-name tx]))
 
 (defn comp-editor-view
   [dom-element initial-document part-cm-name]
@@ -109,10 +111,24 @@
      (let [!view (comp-editor-view dom-element initial-document cm-name)]
        (re-frame/dispatch-sync [::defn-events/set-cm+name !view cm-name])))))
 
+(defn comp-def-editor
+  "Produces a function to act on a code mirror view with the given cm-name
+  using an optional initial document. An empty string is used if no
+  document is provided."
+  ([cm-name]
+   (comp-editor cm-name ""))
+  ([cm-name initial-document]
+   (fn [dom-element]
+     (let [!view (comp-editor-view dom-element initial-document cm-name)]
+       (re-frame/dispatch-sync [::def-events/set-cm+name !view cm-name])))))
+
 (defn part-editor
-  [cm-name]
-  ;(prn :part-editor :cm-name cm-name)
-  [:div {:ref (comp-editor cm-name)}])
+  ([cm-name]
+   (part-editor cm-name :defn))
+  ([cm-name part-type]
+   [:div {:ref (if (= :def part-type)
+                 (comp-def-editor cm-name)
+                 (comp-editor cm-name))}]))
 
 (def doc-options
   ['(defn ranker
@@ -132,7 +148,19 @@
        {:pre [(pos-int? x)]}
        [(inc x) (inc y)]))])
 
+(defn editable-var-form []
+  (let [!mount (fn [comp]
+                 (let [cm-name (wiring/comp-name->cm-name :def.form)
+                       !view   (EditorView. #js {:state    (.create EditorState #js {:doc        ""
+                                                                                     :extensions extensions})
+                                                 :parent   (rdom/dom-node comp)
+                                                 :dispatch (fn [tx]
+                                                             (re-frame/dispatch [::def-events/def-whole-form-tx cm-name tx]))})]
+                   (re-frame/dispatch-sync [::def-events/set-cm+name !view cm-name])))]
+    [:div {:ref !mount}]))
+
 (defn editable-fn-form []
+  (prn ::editable-fn-form-0)
   (let [!mount (fn [comp]
                  (let [cm-name (wiring/comp-name->cm-name :defn.form)
                        !view   (EditorView. #js {:state    (.create EditorState #js {:doc        ""
@@ -159,10 +187,14 @@
         (when @results [result-view @results])))]])
 
 (defn form-box []
-  (let [form (re-frame/subscribe [::subs/the-defn-form])]
+  (let [form-type (re-frame/subscribe [::subs/current-form-type])
+        defn-form (re-frame/subscribe [::subs/the-defn-form])
+        def-form  (re-frame/subscribe [::subs/the-def-form])]
     [v-box :children
-     [[title :level :level2 :label @form]
-      [editable-fn-form]]]))
+     [[title :level :level2 :label (if (= :def @form-type) @def-form @defn-form)]
+      (if (= :def @form-type)
+        [editable-var-form]
+        [editable-fn-form])]]))
 
 (defn prepend-index
   [arity-index n-arities label]
@@ -171,43 +203,62 @@
     (str arity-index "-" label)))
 
 (defn component-part
-  ([part-name label-text]
-   (component-part part-name label-text 0 0))
-  ([part-name label-text arity-index n-arities]
+  ([form-type part-name label-text]
+   (component-part form-type part-name label-text 0 0))
+  ([form-type part-name label-text arity-index n-arities]
    [h-box :gap "5px" :align :center
     :children
     [[label :width "110px" :label (prepend-index arity-index n-arities label-text)]
      (if (zero? n-arities)
-       [part-editor (wiring/comp-name->cm-name part-name)]
-       [part-editor (wiring/indexed-comp-name->cm-name arity-index part-name)])]]))
+       [part-editor (wiring/comp-name->cm-name part-name) form-type]
+       [part-editor (wiring/indexed-comp-name->cm-name arity-index part-name) form-type])]]))
 
 (defn defn-arity-parts
   [arity-index n-arities]
-  [v-box :gap "5px"
+  [v-box :gap "5px" :width "500px"
    :children
    [[line :color "#D8D8D8"]
-    [component-part :defn.params "Parameters" arity-index n-arities]
+    [component-part :defn :defn.params "Parameters" arity-index n-arities]
     [line :color "#D8D8D8"]
-    [component-part :defn.prepost "Pre/Post" arity-index n-arities]
+    [component-part :defn :defn.prepost "Pre/Post" arity-index n-arities]
     [line :color "#D8D8D8"]
-    [component-part :defn.body "Body" arity-index n-arities]]])
+    [component-part :defn :defn.body "Body" arity-index n-arities]]])
 
 (defn defn-parts
+  [arity-data]
+  [v-box :gap "5px" :width "500px"
+   :children
+   (into [[title :level :level2 :label "Function Parts"]
+          [component-part :defn :defn.name "Name"]
+          [line :color "#D8D8D8"]
+          [component-part :defn :defn.docstring "Docstring"]
+          [line :color "#D8D8D8"]
+          [component-part :defn :defn.meta "Attributes"]]
+         (let [n-arities (count arity-data)]
+           (map (fn [arity-index]
+                  (defn-arity-parts arity-index n-arities))
+                (range n-arities))))])
+
+(defn def-parts
   []
-  (let [arity-data (re-frame/subscribe [::subs/fn-arity-data])]
-    [v-box
-     :gap "5px"
-     :children
-     (into [[title :level :level2 :label "Function Parts"]
-            [component-part :defn.name "Name"]
-            [line :color "#D8D8D8"]
-            [component-part :defn.docstring "Docstring"]
-            [line :color "#D8D8D8"]
-            [component-part :defn.meta "Attributes"]]
-           (let [n-arities (count @arity-data)]
-             (map (fn [arity-index]
-                    (defn-arity-parts arity-index n-arities))
-                  (range n-arities))))]))
+  [v-box
+   :gap "5px"
+   :children
+   [[title :level :level2 :label "Var Parts"]
+    [component-part :def :def.name "Name"]
+    [line :color "#D8D8D8"]
+    [component-part :def :def.docstring "Docstring"]
+    [line :color "#D8D8D8"]
+    [component-part :def :def.init-expr "Initial Value"]]])
+
+(defn form-parts
+  []
+  (let [form-type  (re-frame/subscribe [::subs/current-form-type])
+        arity-data (re-frame/subscribe [::subs/fn-arity-data])]
+    (condp = @form-type
+      :defn [defn-parts @arity-data]
+      :def [def-parts]
+      [defn-parts @arity-data])))
 
 (defn linux? []
   (some? (re-find #"(Linux)|(X11)" js/navigator.userAgent)))
@@ -229,7 +280,7 @@
                   "Ctrl"  "⌃"
                   "Mod"   "⌘"})))
 
-(defn defn-form []
+(defn form-view []
   [v-box :gap "5px" :width "500px"
    :children
    [[form-box]]])
@@ -259,8 +310,10 @@
        :tabs ns-vars
        :on-change (fn [var-id]
                     (let [var-type (type-mapping var-id)]
-                      (if (= :defn var-type)
-                        (re-frame/dispatch [::defn-events/set-fn-view var-id])))
+                      (re-frame/dispatch-sync [::whole-ns/current-form-type var-type])
+                      (condp = var-type
+                        :defn (re-frame/dispatch [::defn-events/set-fn-view var-id])
+                        :def (re-frame/dispatch [::def-events/set-def-view var-id])))
                     (reset! selected-var var-id))]]]))
 
 (defn format-ns
@@ -271,8 +324,8 @@
       [label :style {:color "blue" :font-weight :bolder} :label last-part]]]))
 
 (defn ns-view [the-ns-name]
-  (let [ns-data (re-frame/subscribe [::subs/id-index the-ns-name])
-        default-selection        (first (last @ns-data))]
+  (let [ns-data           (re-frame/subscribe [::subs/id-index the-ns-name])
+        default-selection (first (last @ns-data))]
     (re-frame/dispatch [::defn-events/set-fn-view default-selection])
     (when (seq @ns-data)
       [v-box :gap "5px"
@@ -313,7 +366,7 @@
         enriched     (form-parser/add-reference-data un+conformed)]
     (re-frame/dispatch [::whole-ns/ns-forms enriched])))
 
-(defn defn-view []
+(defn whole-ns-view []
   (let [the-ns-name (re-frame/subscribe [::subs/the-ns-name])]
     [v-box :gap "20px" :justify :center :padding "15px"
      :children
@@ -322,9 +375,9 @@
       [h-box :align :start :gap "75px" :padding "5px"
        :children
        [[ns-view @the-ns-name]
-        [defn-form]
+        [form-view]
         [line :color "#D8D8D8"]
-        [defn-parts]]]]]))
+        [form-parts]]]]]))
 
 (defn default-ns-data
   []
@@ -338,7 +391,7 @@
 (defn render []
   (default-ns-data)                                         ;; TODO obtain from project classpath viewer
 
-  (rdom/render [defn-view] (js/document.getElementById "form-editor"))
+  (rdom/render [whole-ns-view] (js/document.getElementById "form-editor"))
 
   (let [mapping (key-mapping)]
     (.. (js/document.querySelectorAll ".mod,.alt,.ctrl")

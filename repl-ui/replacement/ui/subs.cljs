@@ -147,6 +147,16 @@
     (:the-defn-form db)))
 
 (reg-sub
+  ::the-def-form
+  (fn [db]
+    (:the-def-form db)))
+
+(reg-sub
+  ::current-form-type
+  (fn [db]
+    (:current-form-type db)))
+
+(reg-sub
   ::id-index
   (fn [db [_ ns-name]]
     (filter #(= (:ns (val %)) ns-name) (:id-index db))))

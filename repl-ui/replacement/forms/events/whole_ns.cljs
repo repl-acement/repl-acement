@@ -16,6 +16,12 @@
                         :type ref-type
                         :name ref-name}}}))
 
+
+(reg-event-db
+  ::current-form-type
+  (fn [db [_ form-type]]
+    (assoc db :current-form-type form-type)))
+
 (reg-event-db
   ::update-ref-data
   (fn [{:keys [id-index] :as db} [_ id ref-data]]

@@ -49,7 +49,8 @@
        (map #(:conformed %))
        (add-reference-data*)))
 
-(def sample "(ns repl.ace.ment)
+(def sample "(ns repl.ace.ment
+\"Setting themes for the UI.\")
 
 (def themes {:day   :light
              :night :dark})
