@@ -89,7 +89,8 @@
         params-value      (first params+body-value)
         pp?               (map? (second params+body-value))
         pp                (when pp? (second params+body-value))
-        body-value        (last params+body-value)]
+        body-value        (if pp? (drop 2 params+body-value)
+                                  (drop 1 params+body-value))]
     {:params-value params-value
      :body         body-value
      :pre-post-map pp}))
@@ -126,15 +127,18 @@
   [db defn-data cms cm-key]
   (if-let [cm (get-in db [cm-key :cm])]
     (let [defn-property-name (wiring/cm-name->comp-name cm-key)
-          new-text           (pr-str (get defn-data defn-property-name))
-          tx                 (replacement-tx cm new-text)]
+          data               (get defn-data defn-property-name)
+          text               (if (seq? data)
+                               (apply str (interpose "\n" (map pr-str data)))
+                               (pr-str data))
+          formatted          (zprint-file-str text ::update-cm-states)
+          tx                 (replacement-tx cm formatted)]
       (conj cms {:cm cm :tx tx}))
     cms))
 
 (reg-event-fx
   ::fn-fixed-items-update-cms
   (fn [{:keys [db]} [_]]
-    (prn ::fn-fixed-items-update-cms :called)
     (let [cm-keys          (map wiring/comp-name->cm-name defn-common-parts)
           defn-data        (defn-data->properties db)
           cms-with-changes (reduce (partial update-cm-states db defn-data) [] cm-keys)]

@@ -215,7 +215,7 @@
 
 (defn defn-arity-parts
   [arity-index n-arities]
-  [v-box :gap "5px" :width "500px"
+  [v-box :gap "5px" :width "600px"
    :children
    [[line :color "#D8D8D8"]
     [component-part :defn :defn.params "Parameters" arity-index n-arities]
@@ -327,6 +327,7 @@
   (let [ns-data           (re-frame/subscribe [::subs/id-index the-ns-name])
         default-selection (first (last @ns-data))]
     (re-frame/dispatch [::defn-events/set-fn-view default-selection])
+    (re-frame/dispatch [::def-events/set-def-view default-selection])
     (when (seq @ns-data)
       [v-box :gap "5px"
        :children
