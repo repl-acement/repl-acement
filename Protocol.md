@@ -34,14 +34,48 @@ Web sockets data packet from the client
 - Key
   - :repl-acement/save
 - Value
-  - Key 
-    - form-id (uuid)
-  - Value
-    - form.type (symbol)
-    - form.text (string)
-    - form.conformed-data (map from clojure.core.specs)
+  - Keys 
+    - id
+    - type
+    - name
+    - ns-name
+    - data, a map of:
+      - text
+      - conformed
+      - unformed
 
-Link to the spec [TBD]    
+#### Specs
+
+- sample from the [data spec](repl-shared/replacement/protocol/data.cljc)
+
+```clojure
+(s/def ::form-data
+  (s/keys :req-un [::text ::conformed ::unformed]))
+```
+
+- sample from the [events spec](repl-shared/replacement/protocol/events.cljc)
+
+```clojure
+(s/def ::form-save
+  (s/keys :req [::data/id ::data/type ::data/name ::data/ns-name ::data/form-data]))
+```
+
+- example conforming message
+
+```clojure
+#:replacement.protocol.data{:id #uuid"cfe7bd64-f23b-40b3-bc6a-fdedd26293d8",
+                            :type defn,
+                            :name xy,
+                            :ns-name user,
+                            :form-data {:text "(defn xy [x y] (+ x y))",
+                                        :conformed {:defn-type defn,
+                                                    :defn-args {:fn-name xy,
+                                                                :fn-tail [:arity-1
+                                                                          {:params {:args [[:local-symbol x]
+                                                                                           [:local-symbol y]]},
+                                                                           :body [:body [(+ x y)]]}]}},
+                                        :unformed (defn xy [x y] (+ x y))}}
+```
 
 ### Save - Server
 

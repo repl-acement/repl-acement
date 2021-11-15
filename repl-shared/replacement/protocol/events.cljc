@@ -9,7 +9,8 @@
   (stest/instrument))
 
 (s/def ::form-save
-  (s/keys :req [::data/id ::data/form-of ::data/form-data]))
+  (s/keys :req [::data/id ::data/type ::data/name ::data/ns-name ::data/form-data]))
+;; TODO ... ::data/name should match the name in the conformed form
 
 (def form-save-example
   (let [the-form  '(defn xy [x y] (+ x y))
@@ -17,8 +18,10 @@
         unformed  (s/unform ::data/defn-form conformed)]
     {::data/id        #?(:clj  (UUID/randomUUID)
                          :cljs (random-uuid))
-     ::data/form-of   'defn
-     ::data/form-data {:form-text (pr-str the-form)
+     ::data/type      'defn
+     ::data/name      'xy
+     ::data/ns-name   'user
+     ::data/form-data {:text (pr-str the-form)
                        :conformed conformed
                        :unformed  unformed}}))
 

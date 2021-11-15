@@ -26,7 +26,14 @@
   (s/and symbol?
          (partial = 'ns)))
 
-(s/def ::form-of
+(s/def ::minimal-string
+  (s/and string? #(not (string/blank? %))))
+
+(s/def ::name symbol?)
+
+(s/def ::ns-name symbol?)
+
+(s/def ::type
   (s/or :ns ::ns-sym
         :def ::def-sym
         :defn ::defn-sym
@@ -55,14 +62,14 @@
         :defn ::defn-form
         :expr list?))
 
-(s/def ::form-text string?)
+(s/def ::text ::minimal-string)
 
 (s/def ::conformed map?)
 
 (s/def ::unformed ::form)
 
 (s/def ::form-data
-  (s/keys :req-un [::form-text ::conformed ::unformed]))
+  (s/keys :req-un [::text ::conformed ::unformed]))
 
 
 
