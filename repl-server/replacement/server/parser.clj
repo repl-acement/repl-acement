@@ -1,22 +1,22 @@
 (ns replacement.server.parser
   (:require [clojure.spec.alpha :as s]
             [clojure.core.specs.alpha :as core-specs]
+            [replacement.protocol.events :as events-specs]
             [replacement.server.async-prepl :as ap]))
 
 (s/def ::ns-form
   (s/cat
-    :ns-sym (s/and symbol? #(= 'ns %))
+    :ns-sym ::events-specs/ns-sym
     :ns-args ::core-specs/ns-form))
 
 (s/def ::defn
   (s/cat
-    :defn-type (s/and symbol? #(or (= 'defn %)
-                                   (= 'defn- %)))
+    :defn-type ::events-specs/defn-sym
     :defn-args ::core-specs/defn-args))
 
 (s/def ::def
   (s/cat
-    :def (s/and symbol? #(= 'def %))
+    :def ::events-specs/def-sym
     :var-name symbol?
     :docstring (s/? string?)
     :init-expr (s/? any?)))
@@ -26,7 +26,6 @@
         :def ::def
         :defn ::defn
         :expr list?))
-
 
 (s/def ::core-specs/seq-binding-form
   (s/and vector?

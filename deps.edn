@@ -25,7 +25,7 @@
                               re-com/re-com              {:mvn/version "2.13.2"}
                               thheller/shadow-cljs       {:mvn/version "2.14.4"}}}
 
-  :clj         {:extra-paths ["repl-server" "repl-specs" "resources"]
+  :clj         {:extra-paths ["repl-server" "repl-shared" "repl-specs" "resources"]
                 :extra-deps  {org.antlr/antlr4-runtime    {:mvn/version "4.7.1"}
                               clj-deps/clj-deps           {:mvn/version "0.4.10"}
                               clj-kondo/clj-kondo         {:mvn/version "RELEASE"}
@@ -58,6 +58,7 @@
 
   :cljs        {:extra-paths ["repl-ui" "repl-specs" "resources"]
                 :extra-deps  {org.clojure/clojurescript  {:mvn/version "1.10.844"}
+                              cljs-bean/cljs-bean        {:mvn/version "1.7.0"}
                               com.cognitect/transit-cljs {:mvn/version "0.8.264"}
                               re-frame/re-frame          {:mvn/version "1.2.0"}
                               re-com/re-com              {:mvn/version "2.13.2"}

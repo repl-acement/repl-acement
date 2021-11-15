@@ -14,13 +14,14 @@ Specific protocol objectives are:
 - Don't lose user data. All keystrokes and other edits are always saved.
 - Respect user privacy. All actions can be performed anonymously. Any integrations that require authentication are outside the core protocol.  
 - Enforce data signing to improve the software supply chain.
-- Minimal data exchange. The most compact form of request / response is sought to minimize round trips costs.  There may be richer exchanges outside the core protocol.
+- Low cost data exchange. Despite wanting to exchange rich data, a compact form of request / response is sought to minimize round trips costs. There may be higher cost exchanges outside the core protocol.
 
 ## Non-Objectives
 
 Non-objectives of the protocol are:
-- interoperability. ClojureScript clients and Clojure servers are mandated.
-- CLJ/CLJS legacy compatibility. 
+- Interoperability
+  - ClojureScript clients and Clojure servers are mandated.
+- CLJ/CLJS legacy compatibility
   - ClojureScript clients must use ClojureScript 1.10.nnn and higher.
   - Clojure servers must be 1.10 or higher.
 
