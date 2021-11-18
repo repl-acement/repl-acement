@@ -202,6 +202,12 @@
     label
     (str arity-index "-" label)))
 
+(defn pretty-label
+  [label-keyword]
+  (-> (name label-keyword)
+      (str/replace #".*\." "")
+      (str/capitalize)))
+
 (defn component-part
   ([form-type part-name label-text]
    (component-part form-type part-name label-text 0 0))
@@ -217,39 +223,34 @@
   [arity-index n-arities]
   [v-box :gap "5px" :width "600px"
    :children
-   [[line :color "#D8D8D8"]
-    [component-part :defn :defn.params "Parameters" arity-index n-arities]
-    [line :color "#D8D8D8"]
-    [component-part :defn :defn.prepost "Pre/Post" arity-index n-arities]
-    [line :color "#D8D8D8"]
-    [component-part :defn :defn.body "Body" arity-index n-arities]]])
+   (mapcat (fn [part-name]
+             [[line :color "#D8D8D8"]
+              [component-part :defn part-name (pretty-label part-name) arity-index n-arities]])
+           defn-events/arity-parts)])
 
 (defn defn-parts
   [arity-data]
   [v-box :gap "5px" :width "500px"
    :children
-   (into [[title :level :level2 :label "Function Parts"]
-          [component-part :defn :defn.name "Name"]
-          [line :color "#D8D8D8"]
-          [component-part :defn :defn.docstring "Docstring"]
-          [line :color "#D8D8D8"]
-          [component-part :defn :defn.meta "Attributes"]]
-         (let [n-arities (count arity-data)]
-           (map (fn [arity-index]
-                  (defn-arity-parts arity-index n-arities))
-                (range n-arities))))])
+   (vec (concat (into [[title :level :level2 :label "Function Parts"]]
+                      (mapcat (fn [part-name]
+                                [[line :color "#D8D8D8"]
+                                 [component-part :defn part-name (pretty-label part-name)]])
+                              defn-events/common-parts))
+                (let [n-arities (count arity-data)]
+                  (map (fn [arity-index]
+                         (defn-arity-parts arity-index n-arities))
+                       (range n-arities)))))])
 
 (defn def-parts
   []
-  [v-box
-   :gap "5px"
+  [v-box :gap "5px"
    :children
-   [[title :level :level2 :label "Var Parts"]
-    [component-part :def :def.name "Name"]
-    [line :color "#D8D8D8"]
-    [component-part :def :def.docstring "Docstring"]
-    [line :color "#D8D8D8"]
-    [component-part :def :def.init-expr "Initial Value"]]])
+   (into [[title :level :level2 :label "Var Parts"]]
+           (mapcat (fn [part-name]
+                   [[line :color "#D8D8D8"]
+                    [component-part :defn part-name (pretty-label part-name)]])
+                   def-events/parts))])
 
 (defn form-parts
   []
@@ -292,7 +293,7 @@
     :defn "λ"
     "⸮"))
 
-(defn var-list
+(defn var-view
   [var-data default-selection]
   (let [ns-vars      (mapv (fn [[id data]]
                              {:id    id
@@ -311,10 +312,9 @@
        :on-change (fn [var-id]
                     (let [var-type (type-mapping var-id)]
                       (re-frame/dispatch-sync [::whole-ns/current-form-type var-type])
-                      (condp = var-type
-                        :defn (re-frame/dispatch [::defn-events/set-fn-view var-id])
-                        :def (re-frame/dispatch [::def-events/set-def-view var-id])))
+                      (re-frame/dispatch-sync [::whole-ns/set-view var-type var-id]))
                     (reset! selected-var var-id))]]]))
+
 
 (defn format-ns
   [the-ns-name]
@@ -324,15 +324,14 @@
       [label :style {:color "blue" :font-weight :bolder} :label last-part]]]))
 
 (defn ns-view [the-ns-name]
-  (let [ns-data           (re-frame/subscribe [::subs/id-index the-ns-name])
-        default-selection (first (last @ns-data))]
-    (re-frame/dispatch [::defn-events/set-fn-view default-selection])
-    (re-frame/dispatch [::def-events/set-def-view default-selection])
-    (when (seq @ns-data)
+  (let [ns-data (re-frame/subscribe [::subs/id-index the-ns-name])
+        [var-id var-data] (and @ns-data (last @ns-data))]
+    (when var-id
+      (re-frame/dispatch [::whole-ns/set-view (:type var-data) var-id])
       [v-box :gap "5px"
        :children
        [[title :level :level2 :label (format-ns the-ns-name)]
-        (var-list @ns-data default-selection)]])))
+        (var-view @ns-data var-id)]])))
 
 (defn transformers []
   (let [prn-ticked? (r/atom false)
@@ -359,13 +358,6 @@
    [[title :level :level2 :label "Transformations"]
     [gap :size "10px"]
     [transformers]]])
-
-(defn set-ns-data
-  []
-  (let [forms-read   (form-parser/read-whole-ns form-parser/sample)
-        un+conformed (form-parser/whole-ns->forms forms-read)
-        enriched     (form-parser/add-reference-data un+conformed)]
-    (re-frame/dispatch [::whole-ns/ns-forms enriched])))
 
 (defn whole-ns-view []
   (let [the-ns-name (re-frame/subscribe [::subs/the-ns-name])]

@@ -36,7 +36,8 @@
   "Return the component name from a derived CodeMirror keyword.
   Assuming a CodeMirror name of `:fn-name.cm`, will return `:fn-name`"
   [cm-name]
-  (let [indexed-cm-name (indexed-cm-name->comp-name cm-name)]
-    (if (= indexed-cm-name cm-name)
-      (some-> (name cm-name) (string/replace #"\.cm$" "") keyword)
-      indexed-cm-name)))
+  (let [indexed-cm-name (indexed-cm-name->comp-name cm-name)
+        result          (if (= indexed-cm-name cm-name)
+                          (some-> (name cm-name) (string/replace #"\.cm$" "") keyword)
+                          indexed-cm-name)]
+    result))

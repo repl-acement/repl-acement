@@ -9,8 +9,8 @@
     [cljs.spec.alpha :as s]
     [nextjournal.clojure-mode.extensions.formatting :as format]
     [re-frame.core :as re-frame :refer [reg-event-db reg-event-fx reg-fx]]
-    [replacement.structure.core-fn-specs :as core-fn-specs]
-    [replacement.structure.form-specs :as form-specs]
+    [replacement.protocol.cljs-fn-specs :as core-fn-specs]
+    [replacement.protocol.data :as data-specs]
     [replacement.ui.helpers :refer [js->cljs]]
     [replacement.structure.wiring :as wiring]
     [zprint.core :refer [zprint-file-str]]))
@@ -37,8 +37,6 @@
         doc-length (-> cm-state .-doc .-length)]
     (.update cm-state (clj->js {:changes {:from 0 :to doc-length :insert text}}))))
 
-;; Good idea or just use the CLJ spec names?
-(def def-parts [::def.name ::def.docstring ::def.init-expr])
 
 (reg-fx
   ::fn-part-update
@@ -118,11 +116,13 @@
       (conj cms {:cm cm :tx tx}))
     cms))
 
+(def parts [:ns.name :ns.docstring :ns.clauses])
+
 (reg-event-fx
   ::def-fixed-items-update-cms
   (fn [{:keys [db]} [_]]
     (prn :def-fixed-items-update-cms :called)
-    (let [cm-keys          (map wiring/comp-name->cm-name def-parts)
+    (let [cm-keys          (map wiring/comp-name->cm-name parts)
           defn-data        (def-data->properties db)
           cms-with-changes (reduce (partial update-cm-states db defn-data) [] cm-keys)]
       {:db          db
@@ -131,9 +131,9 @@
 (defn- text->spec-data
   [text]
   (let [data         (rdr/read-string text)
-        conformed    (s/conform ::form-specs/def data)
-        explain-data (and (= s/invalid? conformed) (s/explain-data ::form-specs/def data))
-        unformed     (or (= s/invalid? conformed) (s/unform ::form-specs/def conformed))]
+        conformed    (s/conform ::data-specs/ns-form data)
+        explain-data (and (= s/invalid? conformed) (s/explain-data ::data-specs/ns-form data))
+        unformed     (or (= s/invalid? conformed) (s/unform ::data-specs/ns-form conformed))]
     {:def.text         text
      :def.conformed    conformed
      :def.explain-data explain-data
@@ -142,7 +142,7 @@
 (defn- conformed-def->spec-data
   [conformed]
   (let [unformed (when-not (= s/invalid? conformed)
-                   (s/unform ::form-specs/def conformed))]
+                   (s/unform ::data-specs/ns-form conformed))]
     {:def.text         (pr-str unformed)
      :def.conformed    conformed
      :def.explain-data nil
@@ -160,7 +160,7 @@
 
 (defn- common-parts-text
   [db]
-  (->> (map wiring/comp-name->cm-name def-parts)
+  (->> (map wiring/comp-name->cm-name parts)
        (cm-keys->text db)))
 
 (reg-fx
@@ -211,16 +211,14 @@
     (re-frame/dispatch [::def-fixed-items-update-cms])))
 
 (reg-event-fx
-  ::set-def-view
+  ::set-view
   (fn [{:keys [db]} [_ var-id]]
-    (cljs.pprint/pprint [:def.form.cm (get db :def.form.cm)])
-    (let [cm             (get-in db [:def.form.cm :cm])
+    (let [cm             (get-in db [:ns.form.cm :cm])
           var-data       (db var-id)
           conformed-data (:ref-conformed var-data)
           var-name       (:ref-name var-data)
           updates        (conformed-def->spec-data conformed-data)]
-      (cljs.pprint/pprint [:set-def-view :updates updates :cm cm])
       {:db              (merge db {:the-def-form    var-name
                                    :visible-form-id var-id} updates)
-       ::fn-view-update [cm (:def.text updates)]})))
+       ::fn-view-update [cm (:ns.text updates)]})))
 

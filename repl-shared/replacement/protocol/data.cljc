@@ -1,7 +1,7 @@
 (ns replacement.protocol.data
   (:require [clojure.spec.alpha :as s]
             #?(:clj  [clojure.core.specs.alpha :as core-specs]
-               :cljs [replacement.structure.cljs-fn-specs :as core-specs])
+               :cljs [replacement.protocol.cljs-fn-specs :as core-specs])
             [clojure.spec.test.alpha :as stest]
             [clojure.string :as string]
             [replacement.protocol.patched-core-specs])
@@ -41,7 +41,7 @@
 
 (s/def ::ns-form
   (s/cat
-    :ns-sym ::ns-sym
+    :ns ::ns-sym
     :ns-args ::core-specs/ns-form))
 
 (s/def ::defn-form
@@ -64,12 +64,13 @@
 
 (s/def ::text ::minimal-string)
 
-(s/def ::conformed map?)
-
-(s/def ::unformed ::form)
+(s/def ::conformed (s/nilable map?))
+(s/def ::explain map?)
+(s/def ::unformed (s/nilable ::form))
 
 (s/def ::form-data
-  (s/keys :req-un [::text ::conformed ::unformed]))
+  (s/keys :req-un [::text ::conformed ::unformed]
+          :opt-un [::explain]))
 
 
 

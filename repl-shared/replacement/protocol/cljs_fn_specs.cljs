@@ -1,5 +1,5 @@
-(ns replacement.structure.cljs-fn-specs
-  (:require [clojure.spec.alpha :as s]))
+(ns replacement.protocol.cljs-fn-specs
+  (:require [cljs.spec.alpha :as s]))
 
 ;; DRAGONS BE HERE!!
 

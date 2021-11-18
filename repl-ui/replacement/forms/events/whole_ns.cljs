@@ -4,6 +4,8 @@
     [clojure.core.async]
     [re-frame.core :refer [reg-event-db reg-event-fx reg-fx]]
     [replacement.forms.events.defn :as defn-events]
+    [replacement.forms.events.def :as def-events]
+    [replacement.forms.events.ns :as ns-events]
     [replacement.xform.defn :as xform-defn]
     [replacement.ui.helpers :refer [js->cljs]]
     [re-frame.core :as re-frame]))
@@ -21,6 +23,20 @@
   ::current-form-type
   (fn [db [_ form-type]]
     (assoc db :current-form-type form-type)))
+
+(reg-fx
+  ::set-form-view
+  (fn [[var-type var-id]]
+    (condp = var-type
+      :defn (re-frame/dispatch [::defn-events/set-view var-id])
+      :def (re-frame/dispatch [::def-events/set-view var-id])
+      :ns (re-frame/dispatch [::ns-events/set-view var-id]))))
+
+(reg-event-fx
+  ::set-view
+  (fn [{:keys [db]} [_ var-type var-id]]
+    {:db db
+     ::set-form-view [var-type var-id]}))
 
 (reg-event-db
   ::update-ref-data
@@ -95,7 +111,7 @@
       (doall (map (fn [xform]
                     (doall (map #(apply-defn-transforms % xform) joined-forms+ids)))
                   active-xforms)))
-    (re-frame/dispatch [::defn-events/set-fn-view (:visible-form-id db)])))
+    (re-frame/dispatch [::defn-events/set-view (:visible-form-id db)])))
 
 (reg-fx
   ::defn-transforms-off

@@ -9,8 +9,8 @@
     [cljs.spec.alpha :as s]
     [nextjournal.clojure-mode.extensions.formatting :as format]
     [re-frame.core :as re-frame :refer [reg-event-db reg-event-fx reg-fx]]
-    [replacement.structure.core-fn-specs :as core-fn-specs]
-    [replacement.structure.form-specs :as form-specs]
+    [replacement.protocol.cljs-fn-specs :as core-fn-specs]
+    [replacement.protocol.data :as data-specs]
     [replacement.ui.helpers :refer [js->cljs]]
     [replacement.structure.wiring :as wiring]
     [zprint.core :refer [zprint-file-str]]))
@@ -36,9 +36,6 @@
   (let [cm-state   (-> cm .-state)
         doc-length (-> cm-state .-doc .-length)]
     (.update cm-state (clj->js {:changes {:from 0 :to doc-length :insert text}}))))
-
-;; Good idea or just use the CLJ spec names?
-(def def-parts [::def.name ::def.docstring ::def.init-expr])
 
 (reg-fx
   ::fn-part-update
@@ -93,11 +90,16 @@
                   (update-cm cm tx))
                 changes))))
 
+(def parts [:def.name :def.docstring :def.initial-expression])
+(def part->props-map (apply merge (map #(hash-map %1 %2) [:var-name :docstring :init-expr] parts)))
+
 (defn- def-data->properties
   [def-data]
-  {:def.name      (:var-name def-data)
-   :def.docstring (:docstring def-data)
-   :def.init-expr (:init-expr def-data)})
+  (reduce-kv (fn [data k v]
+               (-> data
+                   (dissoc k)
+                   (assoc v (data k))))
+             def-data part->props-map))
 
 (defn update-cm-states
   [db def-data cms cm-key]
@@ -108,10 +110,11 @@
       (conj cms {:cm cm :tx tx}))
     cms))
 
+
 (reg-event-fx
   ::def-fixed-items-update-cms
   (fn [{:keys [db]} [_]]
-    (let [cm-keys          (map wiring/comp-name->cm-name def-parts)
+    (let [cm-keys          (map wiring/comp-name->cm-name parts)
           def-data         (def-data->properties db)
           cms-with-changes (reduce (partial update-cm-states db def-data) [] cm-keys)]
       {:db          db
@@ -120,9 +123,9 @@
 (defn- text->spec-data
   [text]
   (let [data         (rdr/read-string text)
-        conformed    (s/conform ::form-specs/def data)
-        explain-data (and (= s/invalid? conformed) (s/explain-data ::form-specs/def data))
-        unformed     (or (= s/invalid? conformed) (s/unform ::form-specs/def conformed))]
+        conformed    (s/conform ::data-specs/def-form data)
+        explain-data (and (= s/invalid? conformed) (s/explain-data ::data-specs/def-form data))
+        unformed     (or (= s/invalid? conformed) (s/unform ::data-specs/def-form conformed))]
     {:def.text         text
      :def.conformed    conformed
      :def.explain-data explain-data
@@ -131,7 +134,7 @@
 (defn- conformed-def->spec-data
   [conformed]
   (let [unformed (when-not (= s/invalid? conformed)
-                   (s/unform ::form-specs/def conformed))]
+                   (s/unform ::data-specs/def-form conformed))]
     {:def.text         (pr-str unformed)
      :def.conformed    conformed
      :def.explain-data nil
@@ -149,7 +152,7 @@
 
 (defn- common-parts-text
   [db]
-  (->> (map wiring/comp-name->cm-name def-parts)
+  (->> (map wiring/comp-name->cm-name parts)
        (cm-keys->text db)))
 
 (reg-fx
@@ -173,6 +176,7 @@
     (let [cm         (get-in db [:def.form.cm :cm])
           whole-text (whole-form-updated db)
           updates    (text->spec-data whole-text)]
+      (prn ::updates updates)
       {:db               (merge db updates)
        ::fn-whole-update [cm whole-text]})))
 
@@ -200,8 +204,9 @@
     (re-frame/dispatch [::def-fixed-items-update-cms])))
 
 (reg-event-fx
-  ::set-def-view
+  ::set-view
   (fn [{:keys [db]} [_ var-id]]
+    (prn ::set-view)
     (let [cm             (get-in db [:def.form.cm :cm])
           var-data       (db var-id)
           conformed-data (:ref-conformed var-data)

@@ -1,6 +1,7 @@
 (ns replacement.protocol.patched-core-specs
   (:require [clojure.spec.alpha :as s]
-            [clojure.core.specs.alpha :as specs]))
+            #?(:clj  [clojure.core.specs.alpha :as specs]
+               :cljs [replacement.protocol.cljs-fn-specs :as specs])))
 
 ;; There is a problem with the defn-args spec: unform and conform are not fully inlined which
 ;; means that unform returns lists instead of vectors.
