@@ -9,41 +9,20 @@
     [cljs.spec.alpha :as s]
     [nextjournal.clojure-mode.extensions.formatting :as format]
     [re-frame.core :as re-frame :refer [reg-event-db reg-event-fx reg-fx]]
+    [replacement.forms.events.common :as common]
     [replacement.protocol.cljs-fn-specs :as core-fn-specs]
     [replacement.protocol.data :as data-specs]
     [replacement.ui.helpers :refer [js->cljs]]
     [replacement.structure.wiring :as wiring]
     [zprint.core :refer [zprint-file-str]]))
 
-(defn extract-tx-text
-  [^js tx]
-  (->> (.-newDoc tx) (.toJSON) js->cljs (apply str)))
-
-(defn extract-cm-text
-  [^js cm]
-  (->> (-> cm .-state .-doc) (.toJSON) js->cljs (apply str)))
-
-(defn- update-cm
-  ([cm tx]
-   (update-cm cm tx nil))
-  ([cm tx event-args]
-   (.update cm #js [tx])
-   (when event-args
-     (re-frame/dispatch event-args))))
-
-(defn- replacement-tx
-  [cm text]
-  (let [cm-state   (-> cm .-state)
-        doc-length (-> cm-state .-doc .-length)]
-    (.update cm-state (clj->js {:changes {:from 0 :to doc-length :insert text}}))))
-
 
 (reg-fx
   ::fn-part-update
   (fn [[cm tx changed?]]
     (if changed?
-      (update-cm cm tx [::set-part-in-whole])
-      (update-cm cm tx))))
+      (common/update-cm cm tx [::set-part-in-whole])
+      (common/update-cm cm tx))))
 
 (reg-event-fx
   ::part-edit
@@ -57,11 +36,11 @@
   ::whole-edit
   (fn [[cm tx changed?]]
     (if changed?
-      (update-cm cm tx [::transact-whole-form (extract-tx-text tx)])
-      (update-cm cm tx))))
+      (common/update-cm cm tx [::transact-whole-form (common/extract-tx-text tx)])
+      (common/update-cm cm tx))))
 
 (reg-event-fx
-  ::def-whole-form-tx
+  ::whole-form-tx
   (fn [{:keys [db]} [_ cm-name tx]]
     (let [cm       (get-in db [cm-name :cm])
           changed? (js->cljs (.-docChanged tx))]
@@ -74,45 +53,40 @@
     (cljs.pprint/pprint [:set-cm+name :cm cm :comp-name comp-name])
     (assoc db comp-name {:cm cm :name comp-name})))
 
-(defn- arity-data
-  [params+body]
-  (let [params+body-value (s/unform ::core-fn-specs/params+body params+body)
-        params-value      (first params+body-value)
-        pp?               (map? (second params+body-value))
-        pp                (when pp? (second params+body-value))
-        body-value        (last params+body-value)]
-    {:params-value params-value
-     :body         body-value
-     :pre-post-map pp}))
+(defn- lib-data
+  [conformed-libspec]
+  (let [libspec-value (s/unform ::core-fn-specs/libspec conformed-libspec)]
+    (cljs.pprint/pprint [:lib-data :value libspec-value])
+    {:lib-data libspec-value}))
 
-(defn split-defn-args
-  [conformed-defn-args]
-  (let [{:keys [fn-tail]} conformed-defn-args
-        single-arity? (= :arity-1 (first fn-tail))
-        arity-data    (if single-arity?
-                        (-> fn-tail last arity-data vector)
-                        (map arity-data (-> fn-tail last :bodies)))]
-    (merge conformed-defn-args
-           {:single-arity? single-arity?
-            :arity-data    arity-data})))
+(defn- require-data
+  [conformed-require]
+  (let [require-value (s/unform ::core-fn-specs/ns-require conformed-require)]
+    (cljs.pprint/pprint [:require-data :value require-value])
+    {:require-value require-value}))
 
 (reg-fx
   ::update-cms
   (fn [changes]
-    (doall (map (fn [{:keys [cm tx]}] (update-cm cm tx)) changes))))
+    (doall (map (fn [{:keys [cm tx]}] (common/update-cm cm tx)) changes))))
 
-(defn- def-data->properties
-  [def-data]
-  {:def.name      (:var-name def-data)
-   :def.docstring (:docstring def-data)
-   :def.init-expr (:init-expr def-data)})
+(defn- ns-require->properties
+  [ns-data]
+  {:ns.lib     (:lib ns-data)
+   :ns.options (:options ns-data)})
+
+(defn- ns-basic-data->properties
+  [ns-data]
+  {:ns.name      (:ns-name ns-data)
+   :ns.docstring (:docstring ns-data)
+   :ns.clauses   (:ns-clauses ns-data)})
 
 (defn update-cm-states
   [db defn-data cms cm-key]
   (if-let [cm (get-in db [cm-key :cm])]
     (let [defn-property-name (wiring/cm-name->comp-name cm-key)
           new-text           (pr-str (get defn-data defn-property-name))
-          tx                 (replacement-tx cm new-text)]
+          tx                 (common/replacement-tx cm new-text)]
       (conj cms {:cm cm :tx tx}))
     cms))
 
@@ -123,7 +97,7 @@
   (fn [{:keys [db]} [_]]
     (prn :def-fixed-items-update-cms :called)
     (let [cm-keys          (map wiring/comp-name->cm-name parts)
-          defn-data        (def-data->properties db)
+          defn-data        (ns-basic-data->properties db)
           cms-with-changes (reduce (partial update-cm-states db defn-data) [] cm-keys)]
       {:db          db
        ::update-cms cms-with-changes})))
@@ -134,25 +108,25 @@
         conformed    (s/conform ::data-specs/ns-form data)
         explain-data (and (= s/invalid? conformed) (s/explain-data ::data-specs/ns-form data))
         unformed     (or (= s/invalid? conformed) (s/unform ::data-specs/ns-form conformed))]
-    {:def.text         text
-     :def.conformed    conformed
-     :def.explain-data explain-data
-     :def.unformed     unformed}))
+    {:ns.text         text
+     :ns.conformed    conformed
+     :ns.explain-data explain-data
+     :ns.unformed     unformed}))
 
-(defn- conformed-def->spec-data
+(defn- conformed-ns->spec-data
   [conformed]
   (let [unformed (when-not (= s/invalid? conformed)
                    (s/unform ::data-specs/ns-form conformed))]
-    {:def.text         (pr-str unformed)
-     :def.conformed    conformed
-     :def.explain-data nil
-     :def.unformed     unformed}))
+    {:ns.text         (pr-str unformed)
+     :ns.conformed    conformed
+     :ns.explain-data nil
+     :ns.unformed     unformed}))
 
 (defn- cm-keys->text
   [db cm-keys]
   (->> (reduce (fn [text k]
                  (->> (get-in db [k :cm])
-                      (extract-cm-text)
+                      (common/extract-cm-text)
                       (conj text)))
                [] cm-keys)
        (interpose " ")
@@ -167,8 +141,8 @@
   ::fn-whole-update
   (fn [[cm whole-text]]
     (let [tx (->> (zprint-file-str whole-text ::fn-whole-update)
-                  (replacement-tx cm))]
-      (update-cm cm tx))))
+                  (common/replacement-tx cm))]
+      (common/update-cm cm tx))))
 
 (defn- whole-form-updated
   "Scan over all of the active code mirrors that can provide updates
@@ -206,8 +180,8 @@
   ::fn-view-update
   (fn [[cm whole-text]]
     (let [tx (->> (zprint-file-str whole-text ::fn-view-update)
-                  (replacement-tx cm))]
-      (update-cm cm tx))
+                  (common/replacement-tx cm))]
+      (common/update-cm cm tx))
     (re-frame/dispatch [::def-fixed-items-update-cms])))
 
 (reg-event-fx
@@ -217,8 +191,8 @@
           var-data       (db var-id)
           conformed-data (:ref-conformed var-data)
           var-name       (:ref-name var-data)
-          updates        (conformed-def->spec-data conformed-data)]
-      {:db              (merge db {:the-def-form    var-name
+          updates        (conformed-ns->spec-data conformed-data)]
+      {:db              (merge db {:the-ns-form     var-name
                                    :visible-form-id var-id} updates)
        ::fn-view-update [cm (:ns.text updates)]})))
 

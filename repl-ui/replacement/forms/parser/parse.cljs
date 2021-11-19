@@ -27,8 +27,9 @@
        forms))
 
 (defn ns-reference-data
-  [ns-name [type {:keys [var-name] :as data}]]
-  [ns-name var-name type data])
+  [ns-name [type {:keys [ns-args] :as data}]]
+  (let [var-name (:ns-name ns-args)]
+    [ns-name var-name type data]))
 
 (defn def-reference-data
   [ns-name [type {:keys [var-name] :as data}]]
@@ -41,21 +42,23 @@
 
 (defn- add-reference-data*
   [conformed-forms]
-  (cljs.pprint/pprint [:add-reference-data* conformed-forms])
   (let [ns-name (-> conformed-forms first second (get-in [:ns-args :ns-name]))]
     [ns-name (mapv
                (fn [form]
                  (cond
+                   (= :ns (first form)) (ns-reference-data ns-name form)
                    (= :def (first form)) (def-reference-data ns-name form)
                    (= :defn (first form)) (defn-reference-data ns-name form)
                    :else form))
-               (rest conformed-forms))]))
+               conformed-forms)]))
 
 (defn add-reference-data
   [conformed-list]
-  (->> conformed-list
-       (map #(:conformed %))
-       (add-reference-data*)))
+  (let [ref-data (->> conformed-list
+                      (map #(:conformed %))
+                      (add-reference-data*))]
+    (cljs.pprint/pprint [:add-reference-data ref-data])
+    ref-data))
 
 (def sample "(ns repl.ace.ment
 \"Setting themes for the UI.\"

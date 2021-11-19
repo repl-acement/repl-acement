@@ -31,6 +31,7 @@
             [re-frame.core :as re-frame]
             [replacement.forms.events.def :as def-events]
             [replacement.forms.events.defn :as defn-events]
+            [replacement.forms.events.ns :as ns-events]
             [replacement.forms.events.whole-ns :as whole-ns]
             [replacement.forms.parser.parse :as form-parser]
             [replacement.structure.wiring :as wiring]
@@ -171,6 +172,18 @@
                    (re-frame/dispatch-sync [::defn-events/set-cm+name !view cm-name])))]
     [:div {:ref !mount}]))
 
+(defn editable-ns-form []
+  (prn ::editable-ns-form-0)
+  (let [!mount (fn [comp]
+                 (let [cm-name (wiring/comp-name->cm-name :ns.form)
+                       !view   (EditorView. #js {:state    (.create EditorState #js {:doc        ""
+                                                                                     :extensions extensions})
+                                                 :parent   (rdom/dom-node comp)
+                                                 :dispatch (fn [tx]
+                                                             (re-frame/dispatch [::ns-events/whole-form-tx cm-name tx]))})]
+                   (re-frame/dispatch-sync [::ns-events/set-cm+name !view cm-name])))]
+    [:div {:ref !mount}]))
+
 (defn result-view [{:keys [val]}]
   (let [!mount (fn [comp]
                  (EditorView. #js {:state  (.create EditorState #js {:doc        (str "=> " val)
@@ -192,9 +205,11 @@
         def-form  (re-frame/subscribe [::subs/the-def-form])]
     [v-box :children
      [[title :level :level2 :label (if (= :def @form-type) @def-form @defn-form)]
-      (if (= :def @form-type)
-        [editable-var-form]
-        [editable-fn-form])]]))
+      (condp = @form-type
+        :def [editable-var-form]
+        :defn [editable-fn-form]
+        :ns [editable-ns-form]
+        [editable-var-form])]]))
 
 (defn prepend-index
   [arity-index n-arities label]
@@ -289,17 +304,18 @@
 (defn type-label
   [ref-type]
   (condp = ref-type
-    :def "\uD83C\uDC6B"
-    :defn "λ"
-    "⸮"))
+    :def "zmdi-settings"
+    :defn "zmdi-functions"
+    :ns "zmdi-format-list-bulleted"
+    "zmdi-help"))
 
 (defn var-view
   [var-data default-selection]
   (let [ns-vars      (mapv (fn [[id data]]
                              {:id    id
                               :type  (:type data)
-                              :label [h-box :align :center :children
-                                      [[label :width "15px" :label (type-label (:type data))]
+                              :label [h-box :align :center :gap "7px" :children
+                                      [[md-icon-button :md-icon-name (type-label (:type data)) :size :smaller]
                                        [label :label (:name data)]]]})
                            var-data)
         type-mapping (apply merge (map #(hash-map (:id %) (:type %)) ns-vars))
@@ -327,6 +343,7 @@
   (let [ns-data (re-frame/subscribe [::subs/id-index the-ns-name])
         [var-id var-data] (and @ns-data (last @ns-data))]
     (when var-id
+      (cljs.pprint/pprint [:ns-view :ns-data @ns-data])
       (re-frame/dispatch [::whole-ns/set-view (:type var-data) var-id])
       [v-box :gap "5px"
        :children

@@ -118,7 +118,7 @@
                                      (map #(hash-map %1 %2) [:params-value :pre-post-map :body])
                                      (apply merge)))
 
-;; TODO - extract to whole-ns
+;; TODO - extract to whole-ns?
 (defn- conformed-data->properties
   "Function to automate conformed form data to form specific properties"
   [data props-map]
@@ -255,16 +255,28 @@
       {:db               (merge db updates)
        ::fn-parts-update updates})))
 
+(defn- dispatch-parts-updates
+  [arity-data]
+  (re-frame/dispatch [::fn-fixed-items-update-cms])
+  (doall (map-indexed (fn [index data]
+                        (re-frame/dispatch [::fn-arity-n-update-cms data index]))
+                      arity-data)))
+
 (reg-fx
   ::fn-view-update
-  (fn [[cm whole-text {:keys [arity-data]}]]
-    (let [tx (->> (zprint-file-str whole-text ::fn-view-update)
+  (fn [[cm whole-form-text {:keys [arity-data]}]]
+    (let [tx (->> (zprint-file-str whole-form-text ::fn-view-update)
                   (replacement-tx cm))]
-      (update-cm cm tx))
-    (re-frame/dispatch [::fn-fixed-items-update-cms])
-    (doall (map-indexed (fn [index data]
-                          (re-frame/dispatch [::fn-arity-n-update-cms data index]))
-                        arity-data))))
+      (update-cm cm tx)
+      (dispatch-parts-updates arity-data))))
+
+(defn- defn-view-data
+  [db var-data]
+  (let [cm             (get-in db [:defn.form.cm :cm])
+        conformed-data (:ref-conformed var-data)
+        visibility     {:the-defn-form (:ref-name var-data)}
+        updates        (merge {:meta nil :docstring nil}
+                              (conformed->spec-data conformed-data))]))
 
 (reg-event-fx
   ::set-view
@@ -273,11 +285,23 @@
           var-data       (db var-id)
           conformed-data (:ref-conformed var-data)
           var-name       (:ref-name var-data)
+          visibility     {:the-defn-form   var-name
+                          :visible-form-id var-id}
           defaults       {:meta nil :docstring nil}         ;; lift these so others can use?
           updates        (merge defaults (conformed->spec-data conformed-data))]
-      {:db              (merge db {:the-defn-form   var-name
-                                   :visible-form-id var-id} updates)
+      {:db              (merge db visibility updates)
        ::fn-view-update [cm (:defn.text updates) updates]})))
+
+;; Organize it to match the life-cycle:
+
+; event to set the whole view of a specific form-id
+; event set the parts view of the whole
+; event to transact changes (keystrokes) on the whole form
+; --> event to ripple out change to appropriate part
+; events to transact changes (keystrokes) on any of the form parts
+; --> event to reflect back the part change to whole
+; event to persist changes when form is changed
+
 
 
 

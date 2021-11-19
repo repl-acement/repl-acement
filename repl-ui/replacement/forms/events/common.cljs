@@ -47,7 +47,7 @@
   ::part-edit
   (fn [{:keys [db]} [_ part-cm-name tx]]
     (let [cm       (get-in db [part-cm-name :cm])
-          changed? (js->cljs (.-docChanged tx))]
+          changed? (->clj (.-docChanged tx))]
       {:db              db
        ::fn-part-update [cm tx changed?]})))
 
@@ -62,7 +62,7 @@
   ::def-whole-form-tx
   (fn [{:keys [db]} [_ cm-name tx]]
     (let [cm       (get-in db [cm-name :cm])
-          changed? (js->cljs (.-docChanged tx))]
+          changed? (->clj (.-docChanged tx))]
       {:db          db
        ::whole-edit [cm tx changed?]})))
 

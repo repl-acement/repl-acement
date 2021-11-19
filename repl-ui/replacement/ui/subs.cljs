@@ -159,6 +159,7 @@
 (reg-sub
   ::id-index
   (fn [db [_ ns-name]]
+    ;; TODO fix this to reduce scanning the whole index
     (filter #(= (:ns (val %)) ns-name) (:id-index db))))
 
 (reg-sub
