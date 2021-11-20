@@ -206,13 +206,12 @@
 (reg-event-fx
   ::set-view
   (fn [{:keys [db]} [_ var-id]]
-    (prn ::set-view)
-    (let [cm             (get-in db [:def.form.cm :cm])
-          var-data       (db var-id)
-          conformed-data (:ref-conformed var-data)
-          var-name       (:ref-name var-data)
-          updates        (conformed->spec-data conformed-data)]
-      {:db              (merge db {:the-def-form    var-name
-                                   :visible-form-id var-id} conformed-data updates)
-       ::fn-view-update [cm (:def.text updates)]})))
+    (when-let [cm (get-in db [:def.form.cm :cm])]
+      (let [var-data       (db var-id)
+            conformed-data (:ref-conformed var-data)
+            var-name       (:ref-name var-data)
+            updates        (conformed->spec-data conformed-data)]
+        {:db              (merge db {:the-def-form    var-name
+                                     :visible-form-id var-id} conformed-data updates)
+         ::fn-view-update [cm (:def.text updates)]}))))
 

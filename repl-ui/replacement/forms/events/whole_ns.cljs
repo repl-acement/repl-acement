@@ -15,18 +15,6 @@
   (fn [db [_ form-type]]
     (assoc db :current-form-type form-type)))
 
-(reg-event-db
-  ::current-form-data
-  (fn [db [_ {:keys [id type] :as form-data}]]
-    (let [raw-form  (db id)
-          conformed (:ref-conformed raw-form)
-          full-data (condp = type
-                      :def (def-events/conformed->spec-data conformed)
-                      :defn (defn-events/conformed->spec-data conformed)
-                      :ns (ns-events/conformed->spec-data conformed))]
-      (assoc db :current-form-data (assoc form-data :form full-data)))))
-
-;; BAD - drop this, should all happen via subscribes on current form
 (reg-fx
   ::set-form-view
   (fn [[var-type var-id]]
@@ -34,6 +22,18 @@
       :defn (re-frame/dispatch [::defn-events/set-view var-id])
       :def (re-frame/dispatch [::def-events/set-view var-id])
       :ns (re-frame/dispatch [::ns-events/set-view var-id]))))
+
+(reg-event-fx
+  ::current-form-data
+  (fn [{:keys [db]} [_ {:keys [id type] :as form-data}]]
+    (let [raw-form  (db id)
+          conformed (:ref-conformed raw-form)
+          full-data (condp = type
+                      :def (def-events/conformed->spec-data conformed)
+                      :defn (defn-events/conformed->spec-data conformed)
+                      :ns (ns-events/conformed->spec-data conformed))]
+      {:db             (assoc db :current-form-data (assoc form-data :form full-data))
+       ::set-form-view [type id]})))
 
 (reg-event-fx
   ::set-view

@@ -270,27 +270,19 @@
       (update-cm cm tx)
       (dispatch-parts-updates arity-data))))
 
-(defn- defn-view-data
-  [db var-data]
-  (let [cm             (get-in db [:defn.form.cm :cm])
-        conformed-data (:ref-conformed var-data)
-        visibility     {:the-defn-form (:ref-name var-data)}
-        updates        (merge {:meta nil :docstring nil}
-                              (conformed->spec-data conformed-data))]))
-
 (reg-event-fx
   ::set-view
   (fn [{:keys [db]} [_ var-id]]
-    (let [cm             (get-in db [:defn.form.cm :cm])
-          var-data       (db var-id)
-          conformed-data (:ref-conformed var-data)
-          var-name       (:ref-name var-data)
-          visibility     {:the-defn-form   var-name
-                          :visible-form-id var-id}
-          defaults       {:meta nil :docstring nil}         ;; lift these so others can use?
-          updates        (merge defaults (conformed->spec-data conformed-data))]
-      {:db              (merge db visibility updates)
-       ::fn-view-update [cm (:defn.text updates) updates]})))
+    (when-let [cm (get-in db [:defn.form.cm :cm])]
+      (let [var-data       (db var-id)
+            conformed-data (:ref-conformed var-data)
+            var-name       (:ref-name var-data)
+            visibility     {:the-defn-form   var-name
+                            :visible-form-id var-id}
+            defaults       {:meta nil :docstring nil}       ;; lift these so others can use?
+            updates        (merge defaults (conformed->spec-data conformed-data))]
+        {:db              (merge db visibility updates)
+         ::fn-view-update [cm (:defn.text updates) updates]}))))
 
 ;; Organize it to match the life-cycle:
 

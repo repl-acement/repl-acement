@@ -207,20 +207,25 @@
         (prn :result-box (:val @results))
         (when @results [result-view @results])))]])
 
+(def editable-forms (atom {}))
+
 (defn form-view
   []
   (let [form-data (re-frame/subscribe [::subs/current-form-data])]
-    (prn :form-view @form-data)
     (when @form-data
       [v-box :gap "5px" :width "500px"
        :children
        [[title :level :level2 :label (:name @form-data)]
         (condp = (:type @form-data)
-          :def [editable-var-form @form-data]
-          :defn [editable-fn-form @form-data]
-          :ns [editable-ns-form @form-data]
+          :def (or (:var-form @editable-forms)
+                   (:var-form (swap! editable-forms assoc :var-form [editable-var-form @form-data])))
+          :defn (or (:defn-form @editable-forms)
+                    (:defn-form (swap! editable-forms assoc :defn-form [editable-fn-form @form-data])))
+          :ns (or (:ns-form @editable-forms)
+                  (:ns-form (swap! editable-forms assoc :ns-form [editable-ns-form @form-data])))
           ;; TODO - better default logic
-          [editable-var-form @form-data])]])))
+          (or (:defn-form @editable-forms)
+              (:defn-form (swap! editable-forms assoc :defn-form [editable-fn-form @form-data]))))]])))
 
 (defn prepend-index
   [arity-index n-arities label]
@@ -278,14 +283,26 @@
                     [component-part :defn part-name (pretty-label part-name)]])
                  def-events/parts))])
 
+(defn ns-parts
+  []
+  [v-box :gap "5px"
+   :children
+   (into [[title :level :level2 :label "Namespace Parts"]]
+         (mapcat (fn [part-name]
+                   [[line :color "#D8D8D8"]
+                    [component-part :defn part-name (pretty-label part-name)]])
+                 def-events/parts))])
+
 (defn form-parts
   []
-  (let [form-type  (re-frame/subscribe [::subs/current-form-type])
+  (let [form-data  (re-frame/subscribe [::subs/current-form-data])
         arity-data (re-frame/subscribe [::subs/the-defn-arity-data])]
-    (condp = @form-type
-      :defn [defn-parts @arity-data]
-      :def [def-parts]
-      [defn-parts @arity-data])))
+    (when @form-data
+      (condp = (:type @form-data)
+        :defn [defn-parts @arity-data]
+        :def [def-parts]
+        :ns [ns-parts]
+        [defn-parts @arity-data]))))
 
 (defn linux? []
   (some? (re-find #"(Linux)|(X11)" js/navigator.userAgent)))
@@ -337,7 +354,6 @@
                       (re-frame/dispatch [::whole-ns/current-form-data {:id var-id :type type :name name}]))
                     (reset! selected-var var-id))]]]))
 
-
 (defn format-ns
   [the-ns-name]
   (let [[_ first-part last-part] (re-find #"(.*)\.(.*)" (str the-ns-name))]
@@ -345,12 +361,17 @@
      [[label :style {:color "grey" :font-size :smaller} :label (str first-part ".")]
       [label :style {:color "blue" :font-weight :bolder} :label last-part]]]))
 
-(defn ns-view [the-ns-name]
+(def first-time (atom true))
+
+(defn ns-view
+  [the-ns-name]
   (let [ns-data (re-frame/subscribe [::subs/id-index the-ns-name])
-        [var-id var-data] (and @ns-data (last @ns-data))]
+        var-id  (and @ns-data (first (last @ns-data)))]
     (when var-id
-      ;; TODO - remove this, rely on subscriptions instead
-      ;(re-frame/dispatch [::whole-ns/set-view (:type var-data) var-id])
+      (let [{:keys [type name]} (last (last @ns-data))]
+        (when @first-time
+          (re-frame/dispatch [::whole-ns/current-form-data {:id var-id :type type :name name}])
+          (reset! first-time false)))
       [v-box :gap "5px"
        :children
        [[title :level :level2 :label (format-ns the-ns-name)]
