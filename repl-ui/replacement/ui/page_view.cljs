@@ -149,34 +149,42 @@
        {:pre [(pos-int? x)]}
        [(inc x) (inc y)]))])
 
-(defn editable-var-form []
-  (let [!mount (fn [comp]
-                 (let [cm-name (wiring/comp-name->cm-name :def.form)
-                       !view   (EditorView. #js {:state    (.create EditorState #js {:doc        ""
-                                                                                     :extensions extensions})
-                                                 :parent   (rdom/dom-node comp)
-                                                 :dispatch (fn [tx]
-                                                             (re-frame/dispatch [::def-events/def-whole-form-tx cm-name tx]))})]
-                   (re-frame/dispatch-sync [::def-events/set-cm+name !view cm-name])))]
+(defn editable-var-form
+  [form-data]
+  (let [initial-document (-> (get-in form-data [:form :def.text])
+                             (zprint-file-str ::editable-var-form))
+        !mount           (fn [comp]
+                           (let [cm-name (wiring/comp-name->cm-name :def.form)
+                                 !view   (EditorView. #js {:state    (.create EditorState #js {:doc        initial-document
+                                                                                               :extensions extensions})
+                                                           :parent   (rdom/dom-node comp)
+                                                           :dispatch (fn [tx]
+                                                                       (re-frame/dispatch [::def-events/def-whole-form-tx cm-name tx]))})]
+                             (re-frame/dispatch-sync [::def-events/set-cm+name !view cm-name])))]
     [:div {:ref !mount}]))
 
-(defn editable-fn-form []
-  (prn ::editable-fn-form-0)
-  (let [!mount (fn [comp]
-                 (let [cm-name (wiring/comp-name->cm-name :defn.form)
-                       !view   (EditorView. #js {:state    (.create EditorState #js {:doc        ""
-                                                                                     :extensions extensions})
-                                                 :parent   (rdom/dom-node comp)
-                                                 :dispatch (fn [tx]
-                                                             (re-frame/dispatch [::defn-events/fn-whole-form-tx cm-name tx]))})]
-                   (re-frame/dispatch-sync [::defn-events/set-cm+name !view cm-name])))]
+(defn editable-fn-form
+  [form-data]
+  (let [initial-document (-> (get-in form-data [:form :defn.text])
+                             (zprint-file-str ::editable-fn-form))
+        !mount           (fn [comp]
+                           (let [cm-name (wiring/comp-name->cm-name :defn.form)
+                                 !view   (EditorView. #js {:state    (.create EditorState #js {:doc        initial-document
+                                                                                               :extensions extensions})
+                                                           :parent   (rdom/dom-node comp)
+                                                           :dispatch (fn [tx]
+                                                                       (re-frame/dispatch [::defn-events/fn-whole-form-tx cm-name tx]))})]
+                             (re-frame/dispatch-sync [::defn-events/set-cm+name !view cm-name])))]
     [:div {:ref !mount}]))
 
-(defn editable-ns-form []
-  (prn ::editable-ns-form-0)
-  (let [!mount (fn [comp]
+(defn editable-ns-form
+  [form-data]
+  (let [initial-document
+               (-> (get-in form-data [:form :ns.text])
+                   (zprint-file-str ::editable-fn-form))
+        !mount (fn [comp]
                  (let [cm-name (wiring/comp-name->cm-name :ns.form)
-                       !view   (EditorView. #js {:state    (.create EditorState #js {:doc        ""
+                       !view   (EditorView. #js {:state    (.create EditorState #js {:doc        initial-document
                                                                                      :extensions extensions})
                                                  :parent   (rdom/dom-node comp)
                                                  :dispatch (fn [tx]
@@ -199,17 +207,20 @@
         (prn :result-box (:val @results))
         (when @results [result-view @results])))]])
 
-(defn form-box []
-  (let [form-type (re-frame/subscribe [::subs/current-form-type])
-        defn-form (re-frame/subscribe [::subs/the-defn-form])
-        def-form  (re-frame/subscribe [::subs/the-def-form])]
-    [v-box :children
-     [[title :level :level2 :label (if (= :def @form-type) @def-form @defn-form)]
-      (condp = @form-type
-        :def [editable-var-form]
-        :defn [editable-fn-form]
-        :ns [editable-ns-form]
-        [editable-var-form])]]))
+(defn form-view
+  []
+  (let [form-data (re-frame/subscribe [::subs/current-form-data])]
+    (prn :form-view @form-data)
+    (when @form-data
+      [v-box :gap "5px" :width "500px"
+       :children
+       [[title :level :level2 :label (:name @form-data)]
+        (condp = (:type @form-data)
+          :def [editable-var-form @form-data]
+          :defn [editable-fn-form @form-data]
+          :ns [editable-ns-form @form-data]
+          ;; TODO - better default logic
+          [editable-var-form @form-data])]])))
 
 (defn prepend-index
   [arity-index n-arities label]
@@ -236,7 +247,7 @@
 
 (defn defn-arity-parts
   [arity-index n-arities]
-  [v-box :gap "5px" :width "600px"
+  [v-box :gap "5px" :width "500px"
    :children
    (mapcat (fn [part-name]
              [[line :color "#D8D8D8"]
@@ -262,15 +273,15 @@
   [v-box :gap "5px"
    :children
    (into [[title :level :level2 :label "Var Parts"]]
-           (mapcat (fn [part-name]
+         (mapcat (fn [part-name]
                    [[line :color "#D8D8D8"]
                     [component-part :defn part-name (pretty-label part-name)]])
-                   def-events/parts))])
+                 def-events/parts))])
 
 (defn form-parts
   []
   (let [form-type  (re-frame/subscribe [::subs/current-form-type])
-        arity-data (re-frame/subscribe [::subs/fn-arity-data])]
+        arity-data (re-frame/subscribe [::subs/the-defn-arity-data])]
     (condp = @form-type
       :defn [defn-parts @arity-data]
       :def [def-parts]
@@ -296,11 +307,6 @@
                   "Ctrl"  "⌃"
                   "Mod"   "⌘"})))
 
-(defn form-view []
-  [v-box :gap "5px" :width "500px"
-   :children
-   [[form-box]]])
-
 (defn type-label
   [ref-type]
   (condp = ref-type
@@ -312,13 +318,14 @@
 (defn var-view
   [var-data default-selection]
   (let [ns-vars      (mapv (fn [[id data]]
-                             {:id    id
-                              :type  (:type data)
-                              :label [h-box :align :center :gap "7px" :children
-                                      [[md-icon-button :md-icon-name (type-label (:type data)) :size :smaller]
-                                       [label :label (:name data)]]]})
+                             (let [{:keys [type name]} data]
+                               (merge (select-keys data [:name :type])
+                                      {:id    id
+                                       :label [h-box :align :center :gap "7px" :children
+                                               [[md-icon-button :md-icon-name (type-label type) :size :smaller]
+                                                [label :label name]]]})))
                            var-data)
-        type-mapping (apply merge (map #(hash-map (:id %) (:type %)) ns-vars))
+        type-mapping (apply merge (map #(hash-map (:id %) (select-keys % [:name :type])) ns-vars))
         selected-var (r/atom default-selection)]
     [v-box :gap "5px"
      :children
@@ -326,9 +333,8 @@
        :model selected-var
        :tabs ns-vars
        :on-change (fn [var-id]
-                    (let [var-type (type-mapping var-id)]
-                      (re-frame/dispatch-sync [::whole-ns/current-form-type var-type])
-                      (re-frame/dispatch-sync [::whole-ns/set-view var-type var-id]))
+                    (let [{:keys [type name]} (type-mapping var-id)]
+                      (re-frame/dispatch [::whole-ns/current-form-data {:id var-id :type type :name name}]))
                     (reset! selected-var var-id))]]]))
 
 
@@ -343,8 +349,8 @@
   (let [ns-data (re-frame/subscribe [::subs/id-index the-ns-name])
         [var-id var-data] (and @ns-data (last @ns-data))]
     (when var-id
-      (cljs.pprint/pprint [:ns-view :ns-data @ns-data])
-      (re-frame/dispatch [::whole-ns/set-view (:type var-data) var-id])
+      ;; TODO - remove this, rely on subscriptions instead
+      ;(re-frame/dispatch [::whole-ns/set-view (:type var-data) var-id])
       [v-box :gap "5px"
        :children
        [[title :level :level2 :label (format-ns the-ns-name)]
@@ -378,29 +384,19 @@
 
 (defn whole-ns-view []
   (let [the-ns-name (re-frame/subscribe [::subs/the-ns-name])]
-    [v-box :gap "20px" :justify :center :padding "15px"
-     :children
-     [[transform-options]
-      [line :color "#D8D8D8"]
-      [h-box :align :start :gap "75px" :padding "5px"
+    (when @the-ns-name
+      [v-box :gap "20px" :justify :center :padding "15px"
        :children
-       [[ns-view @the-ns-name]
-        [form-view]
+       [[transform-options]
         [line :color "#D8D8D8"]
-        [form-parts]]]]]))
-
-(defn default-ns-data
-  []
-  (->> form-parser/sample
-       (form-parser/read-whole-ns)
-       (form-parser/whole-ns->forms)
-       (form-parser/add-reference-data)
-       (conj [::whole-ns/ns-forms])
-       (re-frame/dispatch)))
+        [h-box :align :start :gap "75px" :padding "5px"
+         :children
+         [[ns-view @the-ns-name]
+          [form-view]
+          [line :color "#D8D8D8"]
+          [form-parts]]]]])))
 
 (defn render []
-  (default-ns-data)                                         ;; TODO obtain from project classpath viewer
-
   (rdom/render [whole-ns-view] (js/document.getElementById "form-editor"))
 
   (let [mapping (key-mapping)]

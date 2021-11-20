@@ -9,6 +9,8 @@
     [replacement.ui.ws :as ws]
     [replacement.xform.aspec :as aspec]
     [replacement.specs.messages :as message-specs]
+    [replacement.forms.parser.parse :as form-parser]
+    [replacement.forms.events.whole-ns :as whole-ns]
     [replacement.specs.user :as user-specs]
     [taoensso.sente :as sente]
     [zprint.core :refer [zprint-file-str]]))
@@ -42,6 +44,38 @@
 (def default-transforms
   {:xforms aspec/sample-xform-declaration})
 
+(defn- ref-data->ref-id-data
+  [{:keys [ns ref-name ref-type] :as ref-data}]
+  (let [ref-id (str (random-uuid))]
+    {ref-id    ref-data
+     :id-index {ref-id {:ns   ns
+                        :type ref-type
+                        :name ref-name}}}))
+
+(defn ns-forms
+  [forms]
+  (let [the-ns-name  (first forms)
+        ns-refs      (second forms)
+        form-data    {:ns-forms    forms
+                      :the-ns-name the-ns-name}
+        ref-id-data  (map (fn [[ref-ns ref-name ref-type ref-conformed]]
+                            (ref-data->ref-id-data {:ns            ref-ns
+                                                    :ref-name      ref-name
+                                                    :ref-type      ref-type
+                                                    :ref-conformed ref-conformed}))
+                          ns-refs)
+        index-update (apply merge (map :id-index ref-id-data))]
+    (apply merge form-data {:id-index index-update}
+           (map #(dissoc % :id-index) ref-id-data))))
+
+(defn- default-ns-data
+  [ns-data-str]
+  (->> ns-data-str
+       (form-parser/read-whole-ns)
+       (form-parser/whole-ns->forms)
+       (form-parser/add-reference-data)
+       (ns-forms)))
+
 ; --- Events ---
 (reg-event-db
   ::initialize-db
@@ -49,7 +83,8 @@
     (merge {::name             "repl-acement"
             ::other-visibility true}
            os-data
-           default-transforms)))
+           default-transforms
+           (default-ns-data form-parser/sample))))
 
 (reg-event-db
   ::network-status

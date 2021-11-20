@@ -195,7 +195,7 @@
 
 (defn defn-parts
   []
-  (let [arity-data (rf/subscribe [::subs/fn-arity-data])]
+  (let [arity-data (rf/subscribe [::subs/the-defn-arity-data])]
     [:div {:class "wrap"}
      (into [:main
             [:table.w-full.md:max-w-sm.text-sm

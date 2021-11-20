@@ -113,7 +113,7 @@
      :ns.explain-data explain-data
      :ns.unformed     unformed}))
 
-(defn- conformed-ns->spec-data
+(defn- conformed->spec-data
   [conformed]
   (let [unformed (when-not (= s/invalid? conformed)
                    (s/unform ::data-specs/ns-form conformed))]
@@ -191,7 +191,7 @@
           var-data       (db var-id)
           conformed-data (:ref-conformed var-data)
           var-name       (:ref-name var-data)
-          updates        (conformed-ns->spec-data conformed-data)]
+          updates        (conformed->spec-data conformed-data)]
       {:db              (merge db {:the-ns-form     var-name
                                    :visible-form-id var-id} updates)
        ::fn-view-update [cm (:ns.text updates)]})))

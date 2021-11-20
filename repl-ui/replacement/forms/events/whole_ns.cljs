@@ -10,20 +10,23 @@
     [replacement.ui.helpers :refer [js->cljs]]
     [re-frame.core :as re-frame]))
 
-(defn- ref-data->ref-id-data
-  [{:keys [ns ref-name ref-type] :as ref-data}]
-  (let [ref-id (str (random-uuid))]
-    {ref-id    ref-data
-     :id-index {ref-id {:ns   ns
-                        :type ref-type
-                        :name ref-name}}}))
-
-
 (reg-event-db
   ::current-form-type
   (fn [db [_ form-type]]
     (assoc db :current-form-type form-type)))
 
+(reg-event-db
+  ::current-form-data
+  (fn [db [_ {:keys [id type] :as form-data}]]
+    (let [raw-form  (db id)
+          conformed (:ref-conformed raw-form)
+          full-data (condp = type
+                      :def (def-events/conformed->spec-data conformed)
+                      :defn (defn-events/conformed->spec-data conformed)
+                      :ns (ns-events/conformed->spec-data conformed))]
+      (assoc db :current-form-data (assoc form-data :form full-data)))))
+
+;; BAD - drop this, should all happen via subscribes on current form
 (reg-fx
   ::set-form-view
   (fn [[var-type var-id]]
@@ -35,7 +38,7 @@
 (reg-event-fx
   ::set-view
   (fn [{:keys [db]} [_ var-type var-id]]
-    {:db db
+    {:db             db
      ::set-form-view [var-type var-id]}))
 
 (reg-event-db
@@ -44,25 +47,6 @@
     (let [index-entry (select-keys ref-data [:ns :ref-name])]
       (assoc db id ref-data
                 :id-index (merge id-index index-entry)))))
-
-(reg-event-db
-  ::ns-forms
-  (fn [{:keys [id-index] :as db} [_ forms]]
-    (let [the-ns-name  (first forms)
-          ns-refs      (second forms)
-          form-data    {:ns-forms    forms
-                        :the-ns-name the-ns-name}
-          ref-id-data  (map (fn [[ref-ns ref-name ref-type ref-conformed]]
-                              (ref-data->ref-id-data {:ns            ref-ns
-                                                      :ref-name      ref-name
-                                                      :ref-type      ref-type
-                                                      :ref-conformed ref-conformed}))
-                            ns-refs)
-          index-update (apply merge (map :id-index ref-id-data))]
-      (cljs.pprint/pprint [:ns-forms :index-update index-update])
-      (apply merge db form-data
-             {:id-index (merge id-index index-update)}
-             (map #(dissoc % :id-index) ref-id-data)))))
 
 (defn apply-join
   [forms-from-ns joins]

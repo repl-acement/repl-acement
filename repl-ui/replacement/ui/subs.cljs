@@ -132,7 +132,7 @@
     (:key-bindings db)))
 
 (reg-sub
-  ::fn-arity-data
+  ::the-defn-arity-data
   (fn [db]
     (:arity-data db)))
 
@@ -155,6 +155,11 @@
   ::current-form-type
   (fn [db]
     (:current-form-type db)))
+
+(reg-sub
+  ::current-form-data
+  (fn [db]
+    (:current-form-data db)))
 
 (reg-sub
   ::id-index
