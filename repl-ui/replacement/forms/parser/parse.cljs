@@ -57,7 +57,7 @@
   (let [ref-data (->> conformed-list
                       (map #(:conformed %))
                       (add-reference-data*))]
-    (cljs.pprint/pprint [:add-reference-data ref-data])
+    ;(cljs.pprint/pprint [:add-reference-data ref-data])
     ref-data))
 
 (def sample "(ns repl.ace.ment

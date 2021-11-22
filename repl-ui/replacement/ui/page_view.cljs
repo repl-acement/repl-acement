@@ -297,6 +297,7 @@
   []
   (let [form-data  (re-frame/subscribe [::subs/current-form-data])
         arity-data (re-frame/subscribe [::subs/the-defn-arity-data])]
+    (prn :form-parts @form-data)
     (when @form-data
       (condp = (:type @form-data)
         :defn [defn-parts @arity-data]

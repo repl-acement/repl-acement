@@ -50,7 +50,6 @@
 (reg-event-db
   ::set-cm+name
   (fn [db [_ cm comp-name]]
-    (cljs.pprint/pprint [:set-cm+name :cm cm :comp-name comp-name])
     (assoc db comp-name {:cm cm :name comp-name})))
 
 (defn- lib-data

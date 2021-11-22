@@ -149,6 +149,7 @@
           cm-keys          (map wiring/comp-name->cm-name common-parts)
           defn-data        (conformed-data->properties defn-args part->props-map)
           cms-with-changes (reduce (partial update-cm-states db defn-data) [] cm-keys)]
+      (prn :fn-fixed-items-update-cms :cms-with-changes cms-with-changes)
       {:db          db
        ::update-cms cms-with-changes})))
 
@@ -286,13 +287,13 @@
 
 ;; Organize it to match the life-cycle:
 
-; event to set the whole view of a specific form-id
-; event set the parts view of the whole
-; event to transact changes (keystrokes) on the whole form
-; --> event to ripple out change to appropriate part
-; events to transact changes (keystrokes) on any of the form parts
-; --> event to reflect back the part change to whole
-; event to persist changes when form is changed
+; ✓ event to set the whole view of a specific form-id
+; ✓ event set the parts view of the whole
+; ✓ event to transact changes (keystrokes) on the whole form
+; ✓ --> event to ripple out change to appropriate part
+; ✓ events to transact changes (keystrokes) on any of the form parts
+; ✓ --> event to reflect back the part change to whole
+; ? event to persist changes when form is changed
 
 
 
