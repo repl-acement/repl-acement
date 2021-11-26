@@ -127,9 +127,11 @@
   ([cm-name]
    (part-editor cm-name :defn))
   ([cm-name part-type]
+   (part-editor cm-name part-type ""))
+  ([cm-name part-type document]
    [:div {:ref (if (= :def part-type)
-                 (comp-def-editor cm-name)
-                 (comp-editor cm-name))}]))
+                 (comp-def-editor cm-name document)
+                 (comp-editor cm-name document))}]))
 
 (def doc-options
   ['(defn ranker
@@ -241,8 +243,10 @@
 
 (defn component-part
   ([form-type part-name label-text]
-   (component-part form-type part-name label-text 0 0))
-  ([form-type part-name label-text arity-index n-arities]
+   (component-part form-type part-name label-text ""))
+  ([form-type part-name label-text document]
+   (component-part form-type part-name label-text document 0 0))
+  ([form-type part-name label-text document arity-index n-arities]
    [h-box :gap "5px" :align :center
     :children
     [[label :width "110px" :label (prepend-index arity-index n-arities label-text)]
@@ -256,11 +260,11 @@
    :children
    (mapcat (fn [part-name]
              [[line :color "#D8D8D8"]
-              [component-part :defn part-name (pretty-label part-name) arity-index n-arities]])
+              [component-part :defn part-name (pretty-label part-name) "" arity-index n-arities]])
            defn-events/arity-parts)])
 
 (defn defn-parts
-  [arity-data]
+  [form-data arity-data]
   [v-box :gap "5px" :width "500px"
    :children
    (vec (concat (into [[title :level :level2 :label "Function Parts"]]
@@ -297,13 +301,13 @@
   []
   (let [form-data  (re-frame/subscribe [::subs/current-form-data])
         arity-data (re-frame/subscribe [::subs/the-defn-arity-data])]
-    (prn :form-parts @form-data)
+    (cljs.pprint/pprint [:form-parts (:defn-args (:form @form-data))])
     (when @form-data
       (condp = (:type @form-data)
-        :defn [defn-parts @arity-data]
+        :defn [defn-parts @form-data @arity-data]
         :def [def-parts]
         :ns [ns-parts]
-        [defn-parts @arity-data]))))
+        [defn-parts @form-data @arity-data]))))
 
 (defn linux? []
   (some? (re-find #"(Linux)|(X11)" js/navigator.userAgent)))
