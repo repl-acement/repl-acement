@@ -27,7 +27,7 @@
                                  md-icon-button input-textarea h-split v-split popover-anchor-wrapper
                                  popover-content-wrapper title flex-child-style p slider]]
             [re-com.splits :refer [hv-split-args-desc]]
-            [re-com.tabs :refer [vertical-pill-tabs]]
+            [re-com.tabs :refer [vertical-pill-tabs horizontal-tabs]]
             [re-frame.core :as re-frame]
             [replacement.forms.events.def :as def-events]
             [replacement.forms.events.defn :as defn-events]
@@ -245,40 +245,50 @@
   ([form-type part-name label-text]
    (component-part form-type part-name label-text ""))
   ([form-type part-name label-text document]
-   (component-part form-type part-name label-text document 0 0))
-  ([form-type part-name label-text document arity-index n-arities]
    [h-box :gap "5px" :align :center
     :children
-    [[label :width "110px" :label (prepend-index arity-index n-arities label-text)]
-     (if (zero? n-arities)
-       [part-editor (wiring/comp-name->cm-name part-name) form-type]
-       [part-editor (wiring/indexed-comp-name->cm-name arity-index part-name) form-type])]]))
+    [[label :width "110px" :label label-text]
+     [part-editor (wiring/comp-name->cm-name part-name) form-type document]]]))
+
+(def editable-defn-arity-parts (atom {}))
 
 (defn defn-arity-parts
-  [arity-index n-arities]
+  []
   [v-box :gap "5px" :width "500px"
    :children
-   (mapcat (fn [part-name]
-             [[line :color "#D8D8D8"]
-              [component-part :defn part-name (pretty-label part-name) "" arity-index n-arities]])
-           defn-events/arity-parts)])
+   (vec (mapcat (fn [part-name]
+                  [[component-part :defn part-name (pretty-label part-name) ""]
+                   [line :color "#D8D8D8"]])
+                defn-events/arity-parts))])
+
+(def editable-defn-parts (atom {}))
 
 (defn defn-parts
-  [form-data arity-data]
-  [v-box :gap "5px" :width "500px"
-   :children
-   (vec (concat (into [[title :level :level2 :label "Function Parts"]]
-                      (mapcat (fn [part-name]
-                                [[line :color "#D8D8D8"]
-                                 [component-part :defn part-name (pretty-label part-name)]])
-                              defn-events/common-parts))
-                (let [n-arities (count arity-data)]
-                  (map (fn [arity-index]
-                         (defn-arity-parts arity-index n-arities))
-                       (range n-arities)))))])
+  [arity-data]
+  (let [arity-elements (map-indexed (fn [idx data]
+                                      {:id    idx
+                                       :label (str "Arity " (inc idx))})
+                                    arity-data)
+        selected-var   (r/atom 0)]
+    [v-box :children
+     [[v-box :gap "5x" :width "500px"
+       :children
+       (vec (into [[title :level :level2 :label "Function Parts"]]
+                  (mapcat (fn [part-name]
+                            [[component-part :defn part-name (pretty-label part-name)]
+                             [line :color "#D8D8D8"]])
+                          defn-events/common-parts)))]
+      [gap :size "10px"]
+      [horizontal-tabs
+       :model selected-var
+       :tabs arity-elements
+       :on-change (fn [var-id]
+                    (re-frame/dispatch [::defn-events/fn-arity-update-cms (nth arity-data var-id)])
+                    (reset! selected-var var-id))]
+      [defn-arity-parts]]]))
 
 (defn def-parts
-  []
+  [form-data]
   [v-box :gap "5px"
    :children
    (into [[title :level :level2 :label "Var Parts"]]
@@ -288,7 +298,7 @@
                  def-events/parts))])
 
 (defn ns-parts
-  []
+  [form-data]
   [v-box :gap "5px"
    :children
    (into [[title :level :level2 :label "Namespace Parts"]]
@@ -301,13 +311,13 @@
   []
   (let [form-data  (re-frame/subscribe [::subs/current-form-data])
         arity-data (re-frame/subscribe [::subs/the-defn-arity-data])]
-    (cljs.pprint/pprint [:form-parts (:defn-args (:form @form-data))])
-    (when @form-data
+    (when (and @form-data @arity-data)
       (condp = (:type @form-data)
-        :defn [defn-parts @form-data @arity-data]
-        :def [def-parts]
-        :ns [ns-parts]
-        [defn-parts @form-data @arity-data]))))
+        :defn (do (re-frame/dispatch [::defn-events/fn-arity-update-cms (first @arity-data)])
+                  [defn-parts @arity-data])
+        :def [def-parts @form-data]
+        :ns [ns-parts @form-data]
+        [defn-parts @arity-data]))))
 
 (defn linux? []
   (some? (re-find #"(Linux)|(X11)" js/navigator.userAgent)))
@@ -366,7 +376,7 @@
      [[label :style {:color "grey" :font-size :smaller} :label (str first-part ".")]
       [label :style {:color "blue" :font-weight :bolder} :label last-part]]]))
 
-(def first-time (atom true))
+(def first-time-ns-view (atom true))
 
 (defn ns-view
   [the-ns-name]
@@ -374,9 +384,9 @@
         var-id  (and @ns-data (first (last @ns-data)))]
     (when var-id
       (let [{:keys [type name]} (last (last @ns-data))]
-        (when @first-time
+        (when @first-time-ns-view
           (re-frame/dispatch [::whole-ns/current-form-data {:id var-id :type type :name name}])
-          (reset! first-time false)))
+          (reset! first-time-ns-view false)))
       [v-box :gap "5px"
        :children
        [[title :level :level2 :label (format-ns the-ns-name)]

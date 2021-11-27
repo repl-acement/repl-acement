@@ -162,6 +162,15 @@
       {:db          db
        ::update-cms cms-with-changes})))
 
+(reg-event-fx
+  ::fn-arity-update-cms
+  (fn [{:keys [db]} [_ per-arity-data]]
+    (let [cm-keys          (map wiring/comp-name->cm-name arity-parts)
+          defn-data        (conformed-data->properties per-arity-data arity->props-map)
+          cms-with-changes (reduce (partial update-cm-states db defn-data) [] cm-keys)]
+      {:db          db
+       ::update-cms cms-with-changes})))
+
 (defn- text->spec-data
   [text]
   (prn :text->spec-data :text text)
