@@ -60,7 +60,7 @@
     ;(cljs.pprint/pprint [:add-reference-data ref-data])
     ref-data))
 
-(def sample "(ns repl.ace.ment
+(def sample "(ns repl.ace.menthol
 \"Setting themes for the UI.\"
   (:require [cljs.spec.alpha :as s]
             [cljs.tools.reader :as reader]))
@@ -84,6 +84,11 @@
   ([output device]
    (str \" To be implemented \" output \" for \" device)))")
 
+(def menthol
+  "(ns replace.menthol\n  \"An example ns showing some forms\"\n  (:require [clojure.core.specs.alpha :as s]))\n\n(def named-by \"Oppenheim A. 1861\")\n\n(defn- inhale!\n  [substance]\n  (comment \"Call a native method\"))\n\n(defn- exhale!\n  [substance]\n  (comment \"Call a native method\"))\n\n(defn smoke\n  \"Simulate smoking a pack of menthol cigarettes\"\n  {:added      \"0.31\"\n   :deprecated \"0.46\"}\n  [pack]\n  {:pre [(coll? pack)]}\n  (map (fn [cigarette]\n         (-> cigarette inhale! exhale!))\n       pack))\n\n(defn- spray*\n  [gun capsule]\n  (comment \"Call a native method on gun\"))\n\n(defn spray\n  \"To save the honey bees\"\n  {:added \"0.40\"}\n  ([box]\n   (spray box :hand-held))\n  ([box gun]\n   {:pre [(keyword? gun)]}\n   (map (fn [capsule] (spray* gun capsule)) box)))\n")
+
+(def mint
+  "(ns replace.mint\n  \"Another example ns showing some forms\"\n  (:require [clojure.core.specs.alpha :as s]))\n\n(def seigniorage \"Profits from coin production\" 0.50)\n\n(defn strike\n  \"Make a new coin and put it into circulation\"\n  {:added \"0.1\"}\n  ([money-supply denomination]\n   {:pre [(keyword? denomination)]}\n   (conj money-supply denomination)))\n")
 
 (def ring-sample-more-forms!!
   "(ns ring.middleware.session.cookie

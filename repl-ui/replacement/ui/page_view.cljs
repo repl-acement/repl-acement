@@ -133,24 +133,6 @@
                  (comp-def-editor cm-name document)
                  (comp-editor cm-name document))}]))
 
-(def doc-options
-  ['(defn ranker
-      "improve ranking on the celestial index"
-      {:since "0.0.1"}
-      [x]
-      {:pre [(pos-int? x)]}
-      (inc x))
-
-   '(defn ranker-arity-n
-      "improve ranking on the celestial index"
-      {:since "0.0.1"}
-      ([x]
-       {:pre [(pos-int? x)]}
-       (ranker-arity-n x (inc x)))
-      ([x y]
-       {:pre [(pos-int? x)]}
-       [(inc x) (inc y)]))])
-
 (defn editable-var-form
   [form-data]
   (let [initial-document (-> (get-in form-data [:form :def.text])
