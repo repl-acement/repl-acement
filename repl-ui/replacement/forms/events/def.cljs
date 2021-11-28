@@ -72,17 +72,6 @@
   (fn [db [_ cm comp-name]]
     (assoc db comp-name {:cm cm :name comp-name})))
 
-(defn- arity-data
-  [params+body]
-  (let [params+body-value (s/unform ::core-fn-specs/params+body params+body)
-        params-value      (first params+body-value)
-        pp?               (map? (second params+body-value))
-        pp                (when pp? (second params+body-value))
-        body-value        (last params+body-value)]
-    {:params-value params-value
-     :body         body-value
-     :pre-post-map pp}))
-
 (reg-fx
   ::update-cms
   (fn [changes]
@@ -110,7 +99,6 @@
       (conj cms {:cm cm :tx tx}))
     cms))
 
-
 (reg-event-fx
   ::def-fixed-items-update-cms
   (fn [{:keys [db]} [_]]
@@ -126,7 +114,7 @@
         conformed    (s/conform ::data-specs/def-form data)
         explain-data (and (= s/invalid? conformed) (s/explain-data ::data-specs/def-form data))
         unformed     (or (= s/invalid? conformed) (s/unform ::data-specs/def-form conformed))]
-    {:def.text         text
+    {:def.text         (-> unformed (pr-str) (zprint-file-str ::text->spec-data))
      :def.conformed    conformed
      :def.explain-data explain-data
      :def.unformed     unformed}))
@@ -135,7 +123,7 @@
   [conformed]
   (let [unformed (when-not (= s/invalid? conformed)
                    (s/unform ::data-specs/def-form conformed))]
-    {:def.text         (pr-str unformed)
+    {:def.text         (-> unformed (pr-str) (zprint-file-str ::conformed->spec-data))
      :def.conformed    conformed
      :def.explain-data nil
      :def.unformed     unformed}))
@@ -156,14 +144,17 @@
        (cm-keys->text db)))
 
 (reg-fx
-  ::fn-whole-update
+  ::whole-update
   (fn [[cm whole-text]]
-    (let [tx (->> (zprint-file-str whole-text ::fn-whole-update)
-                  (replacement-tx cm))]
-      (update-cm cm tx))))
+    (->> (zprint-file-str whole-text ::whole-update)
+         (replacement-tx cm)
+         (update-cm cm))))
 
+;; TODO: this should be from def.text that is built from unform
+;; and such a change should be signalled per active CM
+;; in short, this function is not needed
 (defn- whole-form-updated
-  "Scan over all of the active code mirrors that can provide updates
+  "Scan over all the active code mirrors that can provide updates
   and create the new form to reflect any updates"
   [db]
   (let [fixed-parts (common-parts-text db)
@@ -177,31 +168,28 @@
           whole-text (whole-form-updated db)
           updates    (text->spec-data whole-text)]
       (prn ::updates updates)
-      {:db               (merge db updates)
-       ::fn-whole-update [cm whole-text]})))
+      {:db            (merge db updates)
+       ::whole-update [cm whole-text]})))
 
 (reg-fx
-  ::fn-parts-update
-  (fn [{:keys [arity-data]}]
-    (re-frame/dispatch [::def-fixed-items-update-cms])
-    (doall (map-indexed (fn [index data]
-                          (re-frame/dispatch [::fn-arity-n-update-cms data index]))
-                        arity-data))))
+  ::parts-update
+  (fn []
+    (re-frame/dispatch [::def-fixed-items-update-cms])))
 
 (reg-event-fx
   ::transact-whole-form
   (fn [{:keys [db]} [_ whole-form-text]]
     (let [updates (text->spec-data whole-form-text)]
-      {:db               (merge db updates)
-       ::fn-parts-update updates})))
+      {:db            (merge db updates)
+       ::parts-update updates})))
 
 (reg-fx
-  ::fn-view-update
+  ::view-update
   (fn [[cm whole-text]]
-    (let [tx (->> (zprint-file-str whole-text ::fn-view-update)
+    (let [tx (->> (zprint-file-str whole-text ::view-update)
                   (replacement-tx cm))]
-      (update-cm cm tx))
-    (re-frame/dispatch [::def-fixed-items-update-cms])))
+      (update-cm cm tx)
+      (re-frame/dispatch [::def-fixed-items-update-cms]))))
 
 (reg-event-fx
   ::set-view
@@ -211,7 +199,7 @@
             conformed-data (:ref-conformed var-data)
             var-name       (:ref-name var-data)
             updates        (conformed->spec-data conformed-data)]
-        {:db              (merge db {:the-def-form    var-name
+        {:db           (merge db {:the-def-form    var-name
                                      :visible-form-id var-id} conformed-data updates)
-         ::fn-view-update [cm (:def.text updates)]}))))
+         ::view-update [cm (:def.text updates)]}))))
 

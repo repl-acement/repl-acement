@@ -250,34 +250,35 @@
     [[label :width "110px" :label label-text]
      [part-editor (wiring/comp-name->cm-name part-name) form-type document]]]))
 
-(def editable-defn-arity-parts (atom {}))
+(defn- defn-component-parts
+  [part-list]
+  (mapcat (fn [part-name]
+            [[component-part :defn part-name (pretty-label part-name)]
+             [line :color "#D8D8D8"]])
+          part-list))
+
+(def editable-defn-arity-parts (atom nil))
 
 (defn defn-arity-parts
   []
-  [v-box :gap "5px" :width "500px"
-   :children
-   (vec (mapcat (fn [part-name]
-                  [[component-part :defn part-name (pretty-label part-name) ""]
-                   [line :color "#D8D8D8"]])
-                defn-events/arity-parts))])
+  (let [arity-parts (or @editable-defn-arity-parts
+                        (reset! editable-defn-arity-parts (defn-component-parts defn-events/arity-parts)))]
+    [v-box :gap "5px" :width "500px" :children arity-parts]))
 
-(def editable-defn-parts (atom {}))
+(def editable-defn-parts (atom nil))
 
 (defn defn-parts
   [arity-data]
-  (let [arity-elements (map-indexed (fn [idx data]
+  (let [arity-elements (map-indexed (fn [idx _]
                                       {:id    idx
                                        :label (str "Arity " (inc idx))})
                                     arity-data)
-        selected-var   (r/atom 0)]
+        selected-var   (r/atom 0)
+        common-parts   (or @editable-defn-parts
+                           (reset! editable-defn-parts (defn-component-parts defn-events/common-parts)))]
     [v-box :children
      [[v-box :gap "5x" :width "500px"
-       :children
-       (vec (into [[title :level :level2 :label "Function Parts"]]
-                  (mapcat (fn [part-name]
-                            [[component-part :defn part-name (pretty-label part-name)]
-                             [line :color "#D8D8D8"]])
-                          defn-events/common-parts)))]
+       :children (into [[title :level :level2 :label "Function parts"]] common-parts)]
       [gap :size "10px"]
       [horizontal-tabs
        :model selected-var
@@ -287,15 +288,17 @@
                     (reset! selected-var var-id))]
       [defn-arity-parts]]]))
 
+(def editable-def-parts (atom nil))
+
 (defn def-parts
-  [form-data]
-  [v-box :gap "5px"
-   :children
-   (into [[title :level :level2 :label "Var Parts"]]
-         (mapcat (fn [part-name]
-                   [[line :color "#D8D8D8"]
-                    [component-part :defn part-name (pretty-label part-name)]])
-                 def-events/parts))])
+  []
+  (let [parts (or @editable-def-parts
+                  (reset! editable-def-parts (mapcat (fn [part-name]
+                                                       [[line :color "#D8D8D8"]
+                                                        [component-part :def part-name (pretty-label part-name)]])
+                                                     def-events/parts)))]
+    [v-box :gap "5px"
+     :children (into [[title :level :level2 :label "Var Parts"]] parts)]))
 
 (defn ns-parts
   [form-data]
@@ -309,15 +312,14 @@
 
 (defn form-parts
   []
-  (let [form-data  (re-frame/subscribe [::subs/current-form-data])
-        arity-data (re-frame/subscribe [::subs/the-defn-arity-data])]
-    (when (and @form-data @arity-data)
+  (let [form-data (re-frame/subscribe [::subs/current-form-data])]
+    (when @form-data
       (condp = (:type @form-data)
-        :defn (do (re-frame/dispatch [::defn-events/fn-arity-update-cms (first @arity-data)])
-                  [defn-parts @arity-data])
-        :def [def-parts @form-data]
+        :defn [defn-parts (get-in @form-data [:form :arity-data])]
+        :def [def-parts]
         :ns [ns-parts @form-data]
-        [defn-parts @arity-data]))))
+        ;; TODO - improve default behaviour ...
+        [label :label "Unknown parts"]))))
 
 (defn linux? []
   (some? (re-find #"(Linux)|(X11)" js/navigator.userAgent)))
@@ -366,8 +368,8 @@
        :tabs ns-vars
        :on-change (fn [var-id]
                     (let [{:keys [type name]} (type-mapping var-id)]
-                      (re-frame/dispatch [::whole-ns/current-form-data {:id var-id :type type :name name}]))
-                    (reset! selected-var var-id))]]]))
+                      (re-frame/dispatch-sync [::whole-ns/current-form-data {:id var-id :type type :name name}])
+                      (reset! selected-var var-id)))]]]))
 
 (defn format-ns
   [the-ns-name]
@@ -376,21 +378,21 @@
      [[label :style {:color "grey" :font-size :smaller} :label (str first-part ".")]
       [label :style {:color "blue" :font-weight :bolder} :label last-part]]]))
 
-(def first-time-ns-view (atom true))
-
 (defn ns-view
   [the-ns-name]
-  (let [ns-data (re-frame/subscribe [::subs/id-index the-ns-name])
-        var-id  (and @ns-data (first (last @ns-data)))]
-    (when var-id
-      (let [{:keys [type name]} (last (last @ns-data))]
-        (when @first-time-ns-view
-          (re-frame/dispatch [::whole-ns/current-form-data {:id var-id :type type :name name}])
-          (reset! first-time-ns-view false)))
-      [v-box :gap "5px"
-       :children
-       [[title :level :level2 :label (format-ns the-ns-name)]
-        (var-view @ns-data var-id)]])))
+  (let [first-time-ns-view (atom true)]
+    (fn []
+      (let [ns-data (re-frame/subscribe [::subs/id-index the-ns-name])
+            var-id  (and @ns-data (first (last @ns-data)))]
+        (when var-id
+          (let [{:keys [type name]} (last (last @ns-data))]
+            (when @first-time-ns-view
+              (re-frame/dispatch-sync [::whole-ns/current-form-data {:id var-id :type type :name name}])
+              (reset! first-time-ns-view false)))
+          [v-box :gap "5px"
+           :children
+           [[title :level :level2 :label (format-ns the-ns-name)]
+            (var-view @ns-data var-id)]])))))
 
 (defn transformers []
   (let [prn-ticked? (r/atom false)

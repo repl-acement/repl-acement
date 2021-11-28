@@ -149,7 +149,6 @@
           cm-keys          (map wiring/comp-name->cm-name common-parts)
           defn-data        (conformed-data->properties defn-args part->props-map)
           cms-with-changes (reduce (partial update-cm-states db defn-data) [] cm-keys)]
-      (prn :fn-fixed-items-update-cms :cms-with-changes cms-with-changes)
       {:db          db
        ::update-cms cms-with-changes})))
 
@@ -178,7 +177,7 @@
         conformed     (s/conform ::data-specs/defn-form data)
         explain-data  (and (= s/invalid? conformed) (s/explain-data ::data-specs/defn-form data))
         unformed      (or (= s/invalid? conformed) (s/unform ::data-specs/defn-form conformed))
-        fn-properties {:defn.text         text
+        fn-properties {:defn.text         (-> unformed (pr-str) (zprint-file-str ::text->spec-data))
                        :defn.conformed    conformed
                        :defn.explain-data explain-data
                        :defn.unformed     unformed}
@@ -188,7 +187,7 @@
 (defn- conformed->spec-data
   [conformed]
   (let [unformed      (or (= s/invalid? conformed) (s/unform ::data-specs/defn-form conformed))
-        fn-properties {:defn.text         (pr-str unformed)
+        fn-properties {:defn.text         (-> unformed (pr-str) (zprint-file-str ::conformed->spec-data))
                        :defn.conformed    conformed
                        :defn.explain-data nil
                        :defn.unformed     unformed}
@@ -224,8 +223,11 @@
                   (replacement-tx cm))]
       (update-cm cm tx))))
 
+;; TODO: this should be from def.text that is built from unform
+;; and such a change should be signalled per active CM
+;; in short, this function is not needed
 (defn- whole-form-updated
-  "Scan over all of the active code mirrors that can provide updates
+  "Scan over all the active code mirrors that can provide updates
   and create the new form to reflect any updates"
   [db]
   (let [defn-type   (get-in db [:defn.conformed :defn-type])
@@ -253,9 +255,8 @@
   ::fn-parts-update
   (fn [{:keys [arity-data]}]
     (re-frame/dispatch [::fn-fixed-items-update-cms])
-    (doall (map-indexed (fn [index data]
-                          (re-frame/dispatch [::fn-arity-n-update-cms data index]))
-                        arity-data))))
+    ;; TODO: UI bug ... should show the arity that has been changed, need history to check
+    (re-frame/dispatch [::fn-arity-update-cms (first arity-data)])))
 
 (reg-event-fx
   ::transact-whole-defn-form
@@ -268,9 +269,8 @@
 (defn- dispatch-parts-updates
   [arity-data]
   (re-frame/dispatch [::fn-fixed-items-update-cms])
-  (doall (map-indexed (fn [index data]
-                        (re-frame/dispatch [::fn-arity-n-update-cms data index]))
-                      arity-data)))
+  ;; TODO: UI bug ... should show the arity that has been changed, need history to check
+  (re-frame/dispatch [::fn-arity-update-cms (first arity-data)]))
 
 (reg-fx
   ::fn-view-update

@@ -19,8 +19,8 @@
   ::set-form-view
   (fn [[var-type var-id]]
     (condp = var-type
-      :defn (re-frame/dispatch [::defn-events/set-view var-id])
       :def (re-frame/dispatch [::def-events/set-view var-id])
+      :defn (re-frame/dispatch [::defn-events/set-view var-id])
       :ns (re-frame/dispatch [::ns-events/set-view var-id]))))
 
 (reg-event-fx
