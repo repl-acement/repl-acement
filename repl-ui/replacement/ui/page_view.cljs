@@ -89,39 +89,26 @@
                                 (re-frame/dispatch [event-name tx index]))}))
 
 (defn part-edit
-  [part-cm-name tx]
-  ;(prn :part-edit :part-cm-name part-cm-name :tx tx)
-  (re-frame/dispatch [::defn-events/part-edit part-cm-name tx])
-  (re-frame/dispatch [::def-events/part-edit part-cm-name tx]))
+  [part-cm-name event-name tx]
+  (re-frame/dispatch [event-name part-cm-name tx]))
 
 (defn comp-editor-view
-  [dom-element initial-document part-cm-name]
+  [dom-element initial-document part-cm-name edit-event]
   (EditorView. #js {:state    (.create EditorState #js {:doc        initial-document
                                                         :extensions extensions})
                     :parent   (rdom/dom-node dom-element)
-                    :dispatch (partial part-edit part-cm-name)}))
+                    :dispatch (partial part-edit part-cm-name edit-event)}))
 
 (defn comp-editor
   "Produces a function to act on a code mirror view with the given cm-name
   using an optional initial document. An empty string is used if no
   document is provided."
-  ([cm-name]
-   (comp-editor cm-name ""))
-  ([cm-name initial-document]
+  ([cm-name cm-event-name edit-event-name]
+   (comp-editor cm-name "" cm-event-name edit-event-name))
+  ([cm-name initial-document cm-event-name edit-event-name]
    (fn [dom-element]
-     (let [!view (comp-editor-view dom-element initial-document cm-name)]
-       (re-frame/dispatch-sync [::defn-events/set-cm+name !view cm-name])))))
-
-(defn comp-def-editor
-  "Produces a function to act on a code mirror view with the given cm-name
-  using an optional initial document. An empty string is used if no
-  document is provided."
-  ([cm-name]
-   (comp-editor cm-name ""))
-  ([cm-name initial-document]
-   (fn [dom-element]
-     (let [!view (comp-editor-view dom-element initial-document cm-name)]
-       (re-frame/dispatch-sync [::def-events/set-cm+name !view cm-name])))))
+     (let [!view (comp-editor-view dom-element initial-document cm-name edit-event-name)]
+       (re-frame/dispatch-sync [cm-event-name !view cm-name])))))
 
 (defn part-editor
   ([cm-name]
@@ -129,52 +116,46 @@
   ([cm-name part-type]
    (part-editor cm-name part-type ""))
   ([cm-name part-type document]
-   [:div {:ref (if (= :def part-type)
-                 (comp-def-editor cm-name document)
-                 (comp-editor cm-name document))}]))
+   (let [editor (partial comp-editor cm-name document)]
+     [:div {:ref (condp = part-type
+                   :def (editor ::def-events/set-cm+name ::def-events/part-edit)
+                   :defn (editor ::defn-events/set-cm+name ::defn-events/part-edit)
+                   :ns (editor ::ns-events/set-cm+name ::ns-events/part-edit))}])))
 
-(defn editable-var-form
-  [form-data]
-  (let [initial-document (-> (get-in form-data [:form :def.text])
-                             (zprint-file-str ::editable-var-form))
+(defn editable-form
+  [{:keys [data text-key cm-key event-name] :as x}]
+  (let [initial-document (-> (get-in data [:form text-key])
+                             (zprint-file-str ::editable-form))
         !mount           (fn [comp]
-                           (let [cm-name (wiring/comp-name->cm-name :def.form)
+                           (let [cm-name (wiring/comp-name->cm-name cm-key)
                                  !view   (EditorView. #js {:state    (.create EditorState #js {:doc        initial-document
                                                                                                :extensions extensions})
                                                            :parent   (rdom/dom-node comp)
                                                            :dispatch (fn [tx]
-                                                                       (re-frame/dispatch [::def-events/def-whole-form-tx cm-name tx]))})]
+                                                                       (re-frame/dispatch [event-name cm-name tx]))})]
                              (re-frame/dispatch-sync [::def-events/set-cm+name !view cm-name])))]
     [:div {:ref !mount}]))
 
+(defn editable-var-form
+  [form-data]
+  (editable-form {:data       form-data
+                  :text-key   :def.text
+                  :cm-key     :def.form
+                  :event-name ::def-events/def-whole-form-tx}))
+
 (defn editable-fn-form
   [form-data]
-  (let [initial-document (-> (get-in form-data [:form :defn.text])
-                             (zprint-file-str ::editable-fn-form))
-        !mount           (fn [comp]
-                           (let [cm-name (wiring/comp-name->cm-name :defn.form)
-                                 !view   (EditorView. #js {:state    (.create EditorState #js {:doc        initial-document
-                                                                                               :extensions extensions})
-                                                           :parent   (rdom/dom-node comp)
-                                                           :dispatch (fn [tx]
-                                                                       (re-frame/dispatch [::defn-events/fn-whole-form-tx cm-name tx]))})]
-                             (re-frame/dispatch-sync [::defn-events/set-cm+name !view cm-name])))]
-    [:div {:ref !mount}]))
+  (editable-form {:data       form-data
+                  :text-key   :defn.text
+                  :cm-key     :defn.form
+                  :event-name ::defn-events/fn-whole-form-tx}))
 
 (defn editable-ns-form
   [form-data]
-  (let [initial-document
-               (-> (get-in form-data [:form :ns.text])
-                   (zprint-file-str ::editable-fn-form))
-        !mount (fn [comp]
-                 (let [cm-name (wiring/comp-name->cm-name :ns.form)
-                       !view   (EditorView. #js {:state    (.create EditorState #js {:doc        initial-document
-                                                                                     :extensions extensions})
-                                                 :parent   (rdom/dom-node comp)
-                                                 :dispatch (fn [tx]
-                                                             (re-frame/dispatch [::ns-events/whole-form-tx cm-name tx]))})]
-                   (re-frame/dispatch-sync [::ns-events/set-cm+name !view cm-name])))]
-    [:div {:ref !mount}]))
+  (editable-form {:data       form-data
+                  :text-key   :ns.text
+                  :cm-key     :ns.form
+                  :event-name ::ns-events/whole-form-tx}))
 
 (defn result-view [{:keys [val]}]
   (let [!mount (fn [comp]
