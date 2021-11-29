@@ -84,7 +84,7 @@
             ::other-visibility true}
            os-data
            default-transforms
-           (default-ns-data (rand-nth [form-parser/menthol form-parser/mint])))))
+           (default-ns-data form-parser/sample))))
 
 (reg-event-db
   ::network-status

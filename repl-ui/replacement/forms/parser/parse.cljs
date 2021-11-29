@@ -60,10 +60,13 @@
     ;(cljs.pprint/pprint [:add-reference-data ref-data])
     ref-data))
 
-(def sample "(ns repl.ace.menthol
+(def sample "(ns repl.ace.ment
 \"Setting themes for the UI.\"
-  (:require [cljs.spec.alpha :as s]
-            [cljs.tools.reader :as reader]))
+  (:require \n
+    [cljs.spec.alpha :as s]
+    [cljs.tools.reader :as reader]
+    [clojure.core.async]
+    [zprint.core :as zp :refer [zprint-file-str]]))
 
 (def themes {:day   :light
              :night :dark})

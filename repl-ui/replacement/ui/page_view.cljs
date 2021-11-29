@@ -282,15 +282,16 @@
     [v-box :gap "5px"
      :children (into [[title :level :level2 :label "Var Parts"]] parts)]))
 
+;; TODO -- add tabs for requires
 (defn ns-parts
-  [form-data]
+  []
   [v-box :gap "5px"
    :children
    (into [[title :level :level2 :label "Namespace Parts"]]
          (mapcat (fn [part-name]
                    [[line :color "#D8D8D8"]
                     [component-part :defn part-name (pretty-label part-name)]])
-                 def-events/parts))])
+                 ns-events/parts))])
 
 (defn form-parts
   []
@@ -299,7 +300,7 @@
       (condp = (:type @form-data)
         :defn [defn-parts (get-in @form-data [:form :arity-data])]
         :def [def-parts]
-        :ns [ns-parts @form-data]
+        :ns [ns-parts]
         ;; TODO - improve default behaviour ...
         [label :label "Unknown parts"]))))
 
