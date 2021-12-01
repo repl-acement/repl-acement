@@ -7,14 +7,15 @@
     [cljs.tools.reader.edn :as rdr]
     [cljs.spec.alpha :as s]
     [clojure.core.async]
+    [clojure.string :as string]
     [clojure.walk :as walk]
     [nextjournal.clojure-mode.extensions.formatting :as format]
     [re-frame.core :as re-frame :refer [reg-event-db reg-event-fx reg-fx]]
     [replacement.forms.events.common :as common]
     [replacement.protocol.cljs-fn-specs :as core-fn-specs]
     [replacement.protocol.data :as data-specs]
-    [replacement.ui.helpers :refer [js->cljs]]
     [replacement.structure.wiring :as wiring]
+    [replacement.ui.helpers :refer [js->cljs]]
     [zprint.core :refer [zprint-file-str]]))
 
 
@@ -61,6 +62,19 @@
   [conformed-require]
   (s/unform ::core-fn-specs/ns-require conformed-require))
 
+(defn shortened-ns-name
+  [s]
+  (let [parts     (string/split s #"\.")
+        drop-junk (if (seq (some #{"alpha" "core"} (vector (last parts))))
+                    (butlast parts)
+                    parts)]
+    (if (= 1 (count drop-junk))
+      (str (first drop-junk))
+      (-> (->> (map first (butlast drop-junk))
+               (interpose ".")
+               (apply str))
+          (str "." (last drop-junk))))))
+
 (defn- ns-require->properties
   [{:keys [lib options] :as x}]
   {:lib    lib
@@ -68,10 +82,9 @@
    :refers (:refer options)})
 
 (defn- ns-basic-data->properties
-  [ns-data]
-  {:name      (:ns-name ns-data)
-   :docstring (:docstring ns-data)
-   :clauses   (:ns-clauses ns-data)})
+  [{:keys [ns-name docstring]}]
+  {:name       ns-name
+   :docstring  docstring})
 
 (defn- split-ns
   [conformed-ns-data]
@@ -80,11 +93,12 @@
         _walked (walk/postwalk
                   (fn [node]
                     (when (and (vector? node) (= :libspec (first node)))
-                      (let [unformed (unformed-lib (last node))]
+                      (let [lib      (last node)
+                            unformed (unformed-lib lib)]
                         (swap! libs conj {:conformed (last node)
                                           :unformed  unformed
                                           :text      (pr-str unformed)
-                                          :require   (ns-require->properties (last (last node)))})))
+                                          :require   (ns-require->properties (last lib))})))
                     node)
                   conformed-ns-data)]
     (merge ns-data {:require-libs @libs})))
@@ -103,7 +117,7 @@
       (conj cms {:cm cm :tx tx}))
     cms))
 
-(def parts [:name :docstring :require])
+(def parts [:name :docstring])
 (def clauses [:refer-clojure :require :require-macros :import :use :use-macros])
 
 (reg-event-fx
@@ -165,7 +179,7 @@
   [db]
   (let [fixed-parts (common-parts-text db)
         form-text   (apply str fixed-parts)]
-    (str "(def " form-text ")")))
+    (str "(ns " form-text ")")))
 
 (reg-event-fx
   ::set-part-in-whole
