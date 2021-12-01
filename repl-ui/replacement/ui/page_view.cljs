@@ -175,24 +175,23 @@
         (prn :result-box (:val @results))
         (when @results [result-view @results])))]])
 
-(def editable-forms (atom {}))
-
 (defn form-view
   []
-  (let [form-data (re-frame/subscribe [::subs/current-form-data])]
-    (when @form-data
-      [v-box :gap "5px" :width "500px"
-       :children
-       [[title :level :level2 :label (:name @form-data)]
-        (condp = (:type @form-data)
-          :def (or (:var-form @editable-forms)
-                   (:var-form (swap! editable-forms assoc :var-form [var-form-editor @form-data])))
-          :defn (or (:defn-form @editable-forms)
-                    (:defn-form (swap! editable-forms assoc :defn-form [defn-form-editor @form-data])))
-          :ns (or (:ns-form @editable-forms)
-                  (:ns-form (swap! editable-forms assoc :ns-form [ns-form-editor @form-data])))
-          ;; TODO - improve default behaviour ...
-          [label :label "Unknown form"])]])))
+  (let [editable-forms (atom {})]
+    (fn []
+      (let [form-data (re-frame/subscribe [::subs/current-form-data])]
+        (when @form-data
+          [v-box :width "600px" :children
+           [[title :level :level2 :label (:name @form-data)]
+            (condp = (:type @form-data)
+              :def (or (:var-form @editable-forms)
+                       (:var-form (swap! editable-forms assoc :var-form [var-form-editor @form-data])))
+              :defn (or (:defn-form @editable-forms)
+                        (:defn-form (swap! editable-forms assoc :defn-form [defn-form-editor @form-data])))
+              :ns (or (:ns-form @editable-forms)
+                      (:ns-form (swap! editable-forms assoc :ns-form [ns-form-editor @form-data])))
+              ;; TODO - improve default behaviour ...
+              [label :label "Unknown form"])]])))))
 
 (defn prepend-index
   [arity-index n-arities label]
@@ -210,9 +209,10 @@
   ([form-type part-name label-text]
    (component-part form-type part-name label-text ""))
   ([form-type part-name label-text document]
-   [h-box :gap "5px" :align :center
+   [h-box :gap "5px" :align :center :justify :start
     :children
-    [[label :width "110px" :label label-text]
+    [[label :width "50px" :style {:font-weight :bold} :label label-text]
+     [gap :size "10px"]
      [part-editor (wiring/comp-name->cm-name part-name) form-type document]]]))
 
 (defn- defn-component-parts
@@ -248,10 +248,8 @@
         selected-var   (r/atom 0)
         common-parts   (or @editable-defn-parts
                            (reset! editable-defn-parts (defn-component-parts defn-events/common-parts)))]
-    [v-box :children
-     [[v-box :gap "5x" :width "500px"
-       :children (into [[title :level :level2 :label "Function parts"]] common-parts)]
-      [gap :size "10px"]
+    [v-box :gap "10px" :children
+     [[v-box :gap "10px" :children common-parts]
       [horizontal-tabs
        :model selected-var
        :tabs arity-elements
@@ -264,18 +262,19 @@
   []
   (let [editable-def-parts (atom nil)]
     (fn []
+      (re-frame/dispatch [::def-events/fixed-items-update-cms])
       (let [parts (or @editable-def-parts
                       (reset! editable-def-parts (mapcat (fn [part-name]
-                                                           [[line :color "#D8D8D8"]
-                                                            [component-part :def part-name (pretty-label part-name)]])
+                                                           [[component-part :def part-name (pretty-label part-name)]
+                                                            [line :color "#D8D8D8"]])
                                                          def-events/parts)))]
-        [v-box :gap "5px"
-         :children (into [[title :level :level2 :label "Var Parts"]] parts)]))))
+        [v-box :width "500px" :gap "5px" :children parts]))))
 
 (defn ns-parts
   [form-data]
   (let [editable-require-parts (atom nil)]
     (fn []
+      (re-frame/dispatch [::req-lib-events/update-cms 0])
       (let [requires      (map-indexed (fn [idx {:keys [require]}]
                                          (let [{:keys [lib]} require]
                                            {:id    idx
@@ -284,28 +283,24 @@
             ns-part-forms (or @editable-require-parts
                               (reset! editable-require-parts (require-component-parts req-lib-events/parts)))
             first-parts   (mapcat (fn [part-name]
-                                    [[line :color "#D8D8D8"]
-                                     [component-part :req-libs part-name (pretty-label part-name)]])
-                                  req-lib-events/parts)
+                                    [[component-part :req-libs part-name (pretty-label part-name)]
+                                     [line :color "#D8D8D8"]])
+                                  ns-events/parts)
             selected-var  (r/atom (:id (first requires)))]
         (fn []
-          [v-box
-           :children
-           [[v-box :gap "5px"
-             :children (into [[title :level :level2 :label "Namespace Parts"]]
-                             first-parts)]
-            [line :color "#D8D8D8"]
+          [v-box :width "500px" :children
+           [[v-box :gap "5px" :children first-parts]
             [gap :size "20px"]
-            [label :label "Requires"]
+            [label  :style {:font-weight :bold} :label "Requires"]
             [gap :size "20px"]
-            [h-box :gap "5px"
-             :children
+            [h-box :gap "20px" :children
              [[vertical-pill-tabs
                :model selected-var
                :tabs requires
-               :on-change #(reset! selected-var %)]
-              [v-box :children
-               [ns-part-forms]]]]]])))))
+               :on-change (fn [index]
+                            (re-frame/dispatch [::req-lib-events/update-cms index])
+                            (reset! selected-var index))]
+              [v-box :width "400px" :children ns-part-forms]]]]])))))
 
 (defn form-parts
   []
@@ -386,7 +381,7 @@
             (when @first-time-ns-view
               (re-frame/dispatch-sync [::whole-ns/current-form-data {:id var-id :type type :name name}])
               (reset! first-time-ns-view false)))
-          [v-box :gap "5px"
+          [v-box :width "175px" :gap "5px"
            :children
            [[title :level :level2 :label (format-ns the-ns-name)]
             (var-view @ns-data var-id)]])))))
@@ -424,11 +419,10 @@
        :children
        [[transform-options]
         [line :color "#D8D8D8"]
-        [h-box :align :start :gap "75px" :padding "5px"
+        [h-box :align :start :gap "75px"
          :children
          [[ns-view @the-ns-name]
           [form-view]
-          [line :color "#D8D8D8"]
           [form-parts]]]]])))
 
 (defn render []

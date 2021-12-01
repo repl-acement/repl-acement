@@ -172,12 +172,11 @@
 
 (defn- text->spec-data
   [text]
-  (prn :text->spec-data :text text)
   (let [data          (rdr/read-string text)
         conformed     (s/conform ::data-specs/defn-form data)
         explain-data  (and (= s/invalid? conformed) (s/explain-data ::data-specs/defn-form data))
         unformed      (or (= s/invalid? conformed) (s/unform ::data-specs/defn-form conformed))
-        fn-properties {:defn.text         (-> unformed (pr-str) (zprint-file-str ::text->spec-data))
+        fn-properties {:defn.text         (-> unformed pr-str (zprint-file-str ::text->spec-data))
                        :defn.conformed    conformed
                        :defn.explain-data explain-data
                        :defn.unformed     unformed}
@@ -187,7 +186,7 @@
 (defn- conformed->spec-data
   [conformed]
   (let [unformed      (or (= s/invalid? conformed) (s/unform ::data-specs/defn-form conformed))
-        fn-properties {:defn.text         (-> unformed (pr-str) (zprint-file-str ::conformed->spec-data))
+        fn-properties {:defn.text         (-> unformed pr-str (zprint-file-str ::conformed->spec-data))
                        :defn.conformed    conformed
                        :defn.explain-data nil
                        :defn.unformed     unformed}
@@ -247,7 +246,6 @@
     (let [cm         (get-in db [:defn.form.cm :cm])
           whole-text (whole-form-updated db)
           updates    (text->spec-data whole-text)]
-      (prn ::set-part-in-whole :updates updates)
       {:db               (merge db updates)
        ::fn-whole-update [cm whole-text]})))
 
@@ -262,7 +260,6 @@
   ::transact-whole-defn-form
   (fn [{:keys [db]} [_ whole-form-text]]
     (let [updates (text->spec-data whole-form-text)]
-      (prn ::transact-whole-defn-form :updates updates)
       {:db               (merge db updates)
        ::fn-parts-update updates})))
 
@@ -275,7 +272,7 @@
 (reg-fx
   ::fn-view-update
   (fn [[cm whole-form-text {:keys [arity-data]}]]
-    (let [tx (->> (zprint-file-str whole-form-text ::fn-view-update)
+    (let [tx (->> (zprint-file-str whole-form-text ::fn-view-update {:width 40})
                   (replacement-tx cm))]
       (update-cm cm tx)
       (dispatch-parts-updates arity-data))))

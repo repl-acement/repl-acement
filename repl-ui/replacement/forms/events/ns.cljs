@@ -123,7 +123,6 @@
 (reg-event-fx
   ::items-update-cms
   (fn [{:keys [db]} [_]]
-    (prn :def-fixed-items-update-cms :ns.parts (keys (:ns.parts db)))
     (let [cm-keys          (map wiring/comp-name->cm-name parts)
           defn-data        (:ns.parts db)
           cms-with-changes (reduce (partial update-cm-states db defn-data) [] cm-keys)]
@@ -208,7 +207,7 @@
 (reg-fx
   ::view-update
   (fn [[cm whole-text]]
-    (let [tx (->> (zprint-file-str whole-text ::view-update)
+    (let [tx (->> (zprint-file-str whole-text "whatever" {:width 60})
                   (common/replacement-tx cm))]
       (common/update-cm cm tx))
     (re-frame/dispatch [::items-update-cms])))

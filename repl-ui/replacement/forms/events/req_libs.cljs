@@ -48,12 +48,17 @@
 
 (def parts [:lib :alias :refers])
 
+(defn data->editable-data
+  "Tweak the lib data"
+  [{:keys [lib] :as data}]
+  (merge data {:lib (last lib)}))
+
 (reg-event-fx
-  ::items-update-cms
-  (fn [{:keys [db]} [_]]
-    (prn ::items-update-cms :parts (keys (:req-lib.parts db)))
-    (let [cm-keys          (map wiring/comp-name->cm-name parts)
-          defn-data        (:req-lib.parts db)
-          cms-with-changes (reduce (partial update-cm-states db defn-data) [] cm-keys)]
+  ::update-cms
+  (fn [{:keys [db]} [_ lib-index]]
+    (let [data       (-> db (get-in [:ns.parts :require-libs lib-index :require])
+                         data->editable-data)
+          cm-updates (->> parts (map wiring/comp-name->cm-name)
+                          (reduce (partial update-cm-states db data) []))]
       {:db          db
-       ::update-cms cms-with-changes})))
+       ::update-cms cm-updates})))

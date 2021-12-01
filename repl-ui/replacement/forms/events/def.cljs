@@ -79,7 +79,7 @@
                   (update-cm cm tx))
                 changes))))
 
-(def parts [:def.name :def.docstring :def.initial-expression])
+(def parts [:def.name :def.docstring :def.init])
 (def part->props-map (apply merge (map #(hash-map %1 %2) [:var-name :docstring :init-expr] parts)))
 
 (defn- def-data->properties
@@ -100,7 +100,7 @@
     cms))
 
 (reg-event-fx
-  ::def-fixed-items-update-cms
+  ::fixed-items-update-cms
   (fn [{:keys [db]} [_]]
     (let [cm-keys          (map wiring/comp-name->cm-name parts)
           def-data         (def-data->properties db)
@@ -167,14 +167,13 @@
     (let [cm         (get-in db [:def.form.cm :cm])
           whole-text (whole-form-updated db)
           updates    (text->spec-data whole-text)]
-      (prn ::updates updates)
       {:db            (merge db updates)
        ::whole-update [cm whole-text]})))
 
 (reg-fx
   ::parts-update
   (fn []
-    (re-frame/dispatch [::def-fixed-items-update-cms])))
+    (re-frame/dispatch [::fixed-items-update-cms])))
 
 (reg-event-fx
   ::transact-whole-form
@@ -189,7 +188,7 @@
     (let [tx (->> (zprint-file-str whole-text ::view-update)
                   (replacement-tx cm))]
       (update-cm cm tx)
-      (re-frame/dispatch [::def-fixed-items-update-cms]))))
+      (re-frame/dispatch [::fixed-items-update-cms]))))
 
 (reg-event-fx
   ::set-view
