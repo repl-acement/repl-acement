@@ -235,12 +235,20 @@
   []
   (let [arity-parts (or @editable-defn-arity-parts
                         (reset! editable-defn-arity-parts (defn-component-parts defn-events/arity-parts)))]
-    [v-box :gap "5px" :width "500px" :children arity-parts]))
+    [v-box :gap "10px" :width "500px" :children arity-parts]))
+
+(defn defn-multi-attrs
+  []
+  (let [editable-defn-multi-attrs (atom nil)]
+    (fn []
+      (let [attrs (or @editable-defn-multi-attrs
+                      (reset! editable-defn-multi-attrs (defn-component-parts defn-events/multi-arity-attrs)))]
+        [v-box :gap "10px" :width "500px" :children attrs]))))
 
 (def editable-defn-parts (atom nil))
 
 (defn defn-parts
-  [arity-data]
+  [single-arity? arity-data]
   (let [arity-elements (map-indexed (fn [idx _]
                                       {:id    idx
                                        :label (str "Arity " (inc idx))})
@@ -250,12 +258,14 @@
                            (reset! editable-defn-parts (defn-component-parts defn-events/common-parts)))]
     [v-box :gap "10px" :children
      [[v-box :gap "10px" :children common-parts]
+      (when-not single-arity?
+        [defn-multi-attrs])
       [horizontal-tabs
        :model selected-var
        :tabs arity-elements
-       :on-change (fn [var-id]
-                    (re-frame/dispatch [::defn-events/fn-arity-update-cms (nth arity-data var-id)])
-                    (reset! selected-var var-id))]
+       :on-change (fn [index]
+                    (re-frame/dispatch [::defn-events/arity-update-cms index])
+                    (reset! selected-var index))]
       [defn-arity-parts]]]))
 
 (defn def-parts
@@ -268,7 +278,7 @@
                                                            [[component-part :def part-name (pretty-label part-name)]
                                                             [line :color "#D8D8D8"]])
                                                          def-events/parts)))]
-        [v-box :width "500px" :gap "5px" :children parts]))))
+        [v-box :width "500px" :gap "10px" :children parts]))))
 
 (defn ns-parts
   [form-data]
@@ -291,9 +301,9 @@
           [v-box :width "500px" :children
            [[v-box :gap "5px" :children first-parts]
             [gap :size "20px"]
-            [label  :style {:font-weight :bold} :label "Requires"]
+            [label :style {:font-weight :bold} :label "Requires"]
             [gap :size "20px"]
-            [h-box :gap "20px" :children
+            [h-box :gap "25px" :children
              [[vertical-pill-tabs
                :model selected-var
                :tabs requires
@@ -307,7 +317,7 @@
   (let [form-data (re-frame/subscribe [::subs/current-form-data])]
     (when @form-data
       (condp = (:type @form-data)
-        :defn [defn-parts (get-in @form-data [:form :arity-data])]
+        :defn [defn-parts (get-in @form-data [:form :single-arity?]) (get-in @form-data [:form :arity-data])]
         :def [def-parts]
         :ns [ns-parts @form-data]
         ;; TODO - improve default behaviour ...

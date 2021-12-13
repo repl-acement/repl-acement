@@ -134,7 +134,7 @@
                                                    :dispatch (fn [tx]
                                                                (rf/dispatch [::defn-events/fn-whole-form-tx cm-name tx]))})]
                    (rf/dispatch-sync [::defn-events/set-cm+name !view cm-name])
-                   (rf/dispatch-sync [::defn-events/transact-whole-defn-form formatted])))]
+                   (rf/dispatch-sync [::defn-events/transact-whole-form formatted])))]
     [:div {:ref !mount}]))
 
 (defn result-view [{:keys [val]}]

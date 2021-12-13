@@ -80,12 +80,13 @@
   (swap! theme new-theme))
 
 (defn apply-theme
-  {:api-version \"0.1.0\"
-   :stub true}
+  \"Apply the theme to a given output environment\"
+  {:api-version \"0.1.0\"}
   ([output]
    (apply-theme output :terminal))
   ([output device]
-   (str \" To be implemented \" output \" for \" device)))")
+   (str \" To be implemented \" output \" for \" device))
+  {:stub true})")
 
 (def menthol
   "(ns replace.menthol\n  \"An example ns showing some forms\"\n  (:require [clojure.core.specs.alpha :as s]))\n\n(def named-by \"Oppenheim A. 1861\")\n\n(defn- inhale!\n  [substance]\n  (comment \"Call a native method\"))\n\n(defn- exhale!\n  [substance]\n  (comment \"Call a native method\"))\n\n(defn smoke\n  \"Simulate smoking a pack of menthol cigarettes\"\n  {:added      \"0.31\"\n   :deprecated \"0.46\"}\n  [pack]\n  {:pre [(coll? pack)]}\n  (map (fn [cigarette]\n         (-> cigarette inhale! exhale!))\n       pack))\n\n(defn- spray*\n  [gun capsule]\n  (comment \"Call a native method on gun\"))\n\n(defn spray\n  \"To save the honey bees\"\n  {:added \"0.40\"}\n  ([box]\n   (spray box :hand-held))\n  ([box gun]\n   {:pre [(keyword? gun)]}\n   (map (fn [capsule] (spray* gun capsule)) box)))\n")

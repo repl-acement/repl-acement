@@ -13,7 +13,7 @@
 ;; TODO ... ::data/name should match the name in the conformed form
 
 (def form-save-example0
-  (let [the-form  '(defn xy [x y] (+ x y))
+  (let [the-form  '(defn xy [x y {:keys [a b]}] (+ x y (/ a b)))
         conformed (s/conform ::data/defn-form the-form)
         unformed  (s/unform ::data/defn-form conformed)]
     {::data/id        #?(:clj  (UUID/randomUUID)
