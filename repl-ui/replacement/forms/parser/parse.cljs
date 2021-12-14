@@ -83,7 +83,8 @@
   \"Apply the theme to a given output environment\"
   {:api-version \"0.1.0\"}
   ([output]
-   (apply-theme output :terminal))
+  {:pre [(outputs output)]}
+  (apply-theme output :terminal))
   ([output device]
    (str \" To be implemented \" output \" for \" device))
   {:stub true})")

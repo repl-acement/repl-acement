@@ -20,8 +20,11 @@
     [replacement.protocol.patched-core-specs]
     [replacement.ui.helpers :refer [js->cljs]]
     [replacement.structure.wiring :as wiring]
-    [zprint.core :refer [zprint-file-str]]))
+    [zprint.core :refer [zprint-file-str]]
+    [clojure.edn :as edn]
+    [clojure.walk :as walk]))
 
+; --- seem common
 (defn extract-tx-text
   [^js tx]
   (->> (.-newDoc tx) (.toJSON) js->cljs (apply str)))
@@ -32,11 +35,7 @@
 
 (defn- update-cm!
   ([cm tx]
-   (update-cm! cm tx nil))
-  ([cm tx event-args]
-   (.update cm #js [tx])
-   (when event-args
-     (re-frame/dispatch event-args))))
+   (.update cm #js [tx])))
 
 (defn- replacement-tx
   [cm text]
@@ -44,47 +43,24 @@
         doc-length (-> cm-state .-doc .-length)]
     (.update cm-state (clj->js {:changes {:from 0 :to doc-length :insert text}}))))
 
+(defn fix-width-format
+  ([text]
+   (fix-width-format text 60))
+  ([text width]
+   (zprint-file-str text ::fix-width-format {:width width})))
+
 (defn- format-tx
   [text cm]
-  (->> (zprint-file-str text ::fn-whole-update {:width 60})
-       (replacement-tx cm)))
-
-(reg-fx
-  ::fn-part-update
-  (fn [[cm tx changed?]]
-    (if changed?
-      (update-cm! cm tx [::set-part-in-whole])
-      (update-cm! cm tx))))
-
-(reg-event-fx
-  ::part-edit
-  (fn [{:keys [db]} [_ part-cm-name tx]]
-    (let [cm       (get-in db [part-cm-name :cm])
-          changed? (js->cljs (.-docChanged tx))]
-      {:db              db
-       ::fn-part-update [cm tx changed?]})))
-
-(reg-fx
-  ::fn-whole-edit
-  (fn [[cm tx changed?]]
-    (if changed?
-      (update-cm! cm tx [::transact-whole-form (extract-tx-text tx)])
-      (update-cm! cm tx))))
-
-(reg-event-fx
-  ::fn-whole-form-tx
-  (fn [{:keys [db]} [_ cm-name tx]]
-    (let [cm       (get-in db [cm-name :cm])
-          changed? (js->cljs (.-docChanged tx))]
-      {:db             db
-       ::fn-whole-edit [cm tx changed?]})))
+  (->> text fix-width-format (replacement-tx cm)))
 
 (reg-event-db
   ::set-cm+name
   (fn [db [_ cm comp-name]]
     (assoc db comp-name {:cm cm :name comp-name})))
 
-(defn- arity-data
+; --- seem common [ END ]
+
+(defn- unformed-arity-data
   [params+body]
   (let [params+body-value (s/unform ::core-fn-specs/params+body params+body)
         params-value      (first params+body-value)
@@ -96,29 +72,134 @@
      :body         body-value
      :pre-post-map pre-post}))
 
-(defn split-defn-args
+(defn conformed-arity-data
   [conformed-defn-args]
   (let [{:keys [fn-tail]} conformed-defn-args
         single-arity? (= :arity-1 (first fn-tail))
-        arity-data    (if single-arity?
-                        (-> fn-tail last arity-data vector)
-                        (map arity-data (-> fn-tail last :bodies)))
         extra-meta    (when-not single-arity? (get-in fn-tail [:arity-n :arity-map]))]
-    {:defn-args     conformed-defn-args
-     :single-arity? single-arity?
-     :arity-data    arity-data
+    {:single-arity? single-arity?
      :extra-meta    extra-meta}))
+
+(defn split-defn-args
+  [conformed-defn-args]
+  (let [{:keys [fn-tail]} conformed-defn-args
+        {:keys [single-arity?] :as props} (conformed-arity-data conformed-defn-args)
+        arity-data (if single-arity?
+                     (-> fn-tail last unformed-arity-data vector)
+                     (map unformed-arity-data (-> fn-tail last :bodies)))]
+    (merge props {:defn-args  conformed-defn-args
+                  :arity-data arity-data})))
 
 (defn update-cms!
   [changes]
   (doall (map (fn [{:keys [cm tx]}] (update-cm! cm tx)) changes)))
 
 ;; Data to automate conformed form data to form specific properties
+;; TODO drop these
 (def common-parts [:defn.name :defn.docstring :defn.meta])
 (def ^:private part->props-map (->> common-parts
                                     (map #(hash-map %1 %2) [:fn-name :docstring :meta])
                                     (apply merge)))
-(def ^:private part-spec ::core-fn-specs/defn-args)
+
+(s/def ::optional-string (s/nilable string?))
+(s/def ::optional-map (s/nilable map?))
+(s/def ::body (s/+ any?))
+
+(defn- set-pre-post*
+  [index index-count new-value node]
+  (let [return-node (cond
+                      ;; There is an existing prepost property at the index
+                      (and (vector? node)
+                           (= (first node) :prepost+body)
+                           (= index @index-count))
+                      [:prepost+body (assoc (last node) :prepost new-value)]
+
+                      ;; There is not an existing prepost property at the index
+                      (and (vector? node)
+                           (= (first node) :body)
+                           (= (first (last node)) :body)
+                           (= index @index-count))
+                      [:body [:prepost+body (assoc {} :prepost new-value :body (last (last node)))]]
+
+                      :else node)]
+    (when (and (map? node) (:params node))
+      (swap! index-count inc))
+    return-node))
+
+(defn set-pre-post
+  [conformed-data new-value index]
+  (let [index       (or index 0)
+        index-count (atom 0)]
+    (walk/postwalk
+      (partial set-pre-post* index index-count new-value)
+      conformed-data)))
+
+(defn set-params
+  [conformed-data new-value index]
+  (let [index       (or index 0)
+        index-count (atom 0)]
+    (walk/postwalk
+      (fn [node]
+        (let [return-node (if (and (map? node)
+                                   (= index @index-count)
+                                   (:params node))
+                            (assoc-in node [:params] new-value)
+                            node)]
+          (when (and (map? node) (:params node))
+            (swap! index-count inc))
+          return-node))
+      conformed-data)))
+
+(defn- set-body*
+  [index index-count new-value node]
+  (let [return-node (cond
+                      ;; There is an existing prepost property at the index
+                      (and (vector? node)
+                           (= (first node) :prepost+body)
+                           (= index @index-count))
+                      [:prepost+body (assoc (last node) :body new-value)]
+
+                      ;; There is not an existing prepost property at the index
+                      (and (vector? node)
+                           (= (first node) :body)
+                           (= (first (last node)) :body)
+                           (= index @index-count))
+                      [:body [:body new-value]]
+
+                      :else node)]
+    (when (and (map? node) (:params node))
+      (swap! index-count inc))
+    return-node))
+
+(defn set-body
+  [conformed-data new-value index]
+  (let [index       (or index 0)
+        index-count (atom 0)]
+    (walk/postwalk
+      (partial set-body* index index-count new-value)
+      conformed-data)))
+
+(def parts {:defn.name      {:name :fn-name
+                             :spec simple-symbol?
+                             :path #(assoc-in %1 [:defn-args :fn-name] %2)}
+            :defn.docstring {:name :docstring
+                             :spec ::optional-string
+                             :path #(assoc-in %1 [:defn-args :docstring] %2)}
+            :defn.meta      {:name :meta
+                             :spec ::optional-map
+                             :path #(assoc-in %1 [:defn-args :meta] %2)}
+            :defn.params    {:name   :params-value
+                             :spec   ::core-fn-specs/param-list
+                             :arity? true
+                             :path   #(set-params %1 %2 %3)}
+            :defn.pre-post  {:name   :pre-post-map
+                             :spec   ::optional-map
+                             :arity? true
+                             :path   #(set-pre-post %1 %2 %3)}
+            :defn.body      {:name   :body
+                             :spec   ::body
+                             :arity? true
+                             :path   #(set-body %1 %2 %3)}})
 
 (def ^:private props-map->part (clojure.set/map-invert part->props-map))
 
@@ -140,12 +221,6 @@
 (def ^:private multi-arity->attrs-map {:extra-meta :attr-map})
 (def ^:private attrs-map->multi-arity (clojure.set/map-invert multi-arity->attrs-map))
 
-(defn update-fixed-defn-args
-  "Updates the value of `property-name` to `new-value` in the `conformed-data` map"
-  [conformed-data property-name new-value]
-  (let [arg-key (props-map->part property-name)]
-    (assoc-in conformed-data [:defn-args arg-key] new-value)))
-
 (defn update-arity-defn-args
   "Updates the value of `property-name` to `new-value` in the `conformed-data` map"
   ([conformed-data property-name new-value]
@@ -153,7 +228,6 @@
   ([conformed-data property-name new-value arity-index]
    (let [arg-key (props-map->part property-name)]
      (assoc-in conformed-data [:defn-args arg-key] new-value))))
-
 
 ;; TODO - extract to whole-ns?
 (defn- conformed-data->properties
@@ -174,7 +248,7 @@
           text          (if (seq? data)
                           (apply str (interpose "\n" (map pr-str data)))
                           (pr-str data))
-          formatted     (zprint-file-str text ::update-cm-states)
+          formatted     (fix-width-format text)
           tx            (replacement-tx cm formatted)]
       (conj cms {:cm cm :tx tx}))
     cms))
@@ -222,7 +296,7 @@
         conformed     (s/conform ::data-specs/defn-form data)
         explain-data  (and (= s/invalid? conformed) (s/explain-data ::data-specs/defn-form data))
         unformed      (or (= s/invalid? conformed) (s/unform ::data-specs/defn-form conformed))
-        fn-properties {:defn.text         (-> unformed pr-str (zprint-file-str ::text->spec-data))
+        fn-properties {:defn.text         (-> unformed pr-str fix-width-format)
                        :defn.conformed    conformed
                        :defn.explain-data explain-data
                        :defn.unformed     unformed}
@@ -231,8 +305,10 @@
 
 (defn- conformed->spec-data
   [conformed]
-  (let [unformed      (or (= s/invalid? conformed) (s/unform ::data-specs/defn-form conformed))
-        fn-properties {:defn.text         (-> unformed pr-str (zprint-file-str ::conformed->spec-data))
+  (let [unformed      (when-not (= s/invalid? conformed)
+                        (prn ::conformed->spec-data0)
+                        (s/unform ::data-specs/defn-form conformed))
+        fn-properties {:defn.text         (-> unformed pr-str fix-width-format)
                        :defn.conformed    conformed
                        :defn.explain-data nil
                        :defn.unformed     unformed}
@@ -270,8 +346,7 @@
 (reg-fx
   ::fn-whole-update
   (fn [[cm whole-text]]
-    (let [tx (->> (zprint-file-str whole-text ::fn-whole-update)
-                  (replacement-tx cm))]
+    (let [tx (->> whole-text fix-width-format (replacement-tx cm))]
       (update-cm! cm tx))))
 
 ;; TODO: this should be from defn.text that is built from unform
@@ -302,32 +377,71 @@
       {:db               (merge db updates)
        ::fn-whole-update [cm whole-text]})))
 
+(defn update-from-parts
+  "Updates the value of `property-name` to `new-value` in the `conformed-data` map. If `new-value` is
+  not conforming, the update is nil and the spec explain-data is provided"
+  [conformed-data property-name new-value arity-index]
+  (let [{:keys [spec path arity?]} (get parts property-name)
+        input          (edn/read-string new-value)
+        conformed-part (s/conform spec input)
+        update         (when-not (s/invalid? conformed-part)
+                         (if arity?
+                           (path conformed-data conformed-part arity-index)
+                           (path conformed-data conformed-part)))
+        explain        (when (s/invalid? conformed-part)
+                         (s/explain-data spec input))]
+    (cljs.pprint/pprint [:input input :conformed-part conformed-part :conformed-data conformed-data :update update])
+    {:value   new-value
+     :input   input
+     :update  update
+     :explain explain}))
+
+(reg-event-db
+  ::part-edit
+  (fn [db [_ part-cm-name tx]]
+    ;; Always update the transacting code-mirror
+    (-> (get-in db [part-cm-name :cm]) (update-cm! tx))
+    (if-not (js->cljs (.-docChanged tx))
+      db
+      (let [{:keys [arity-index visible-form-id]} db
+            {:keys [ref-conformed]} (get db visible-form-id)
+            part-name (wiring/cm-name->comp-name part-cm-name)
+            text      (extract-tx-text tx)
+            updates   (update-from-parts ref-conformed part-name text arity-index)]
+        (prn :cm-name part-cm-name :tx (extract-tx-text tx) :arity-index arity-index)
+        (if-not (:update updates)
+          db
+          (let [db' (merge db (conformed->spec-data (:update updates)))
+                cm  (get-in db' [:defn.form.cm :cm])]
+            (update-cm! cm (format-tx (:defn.text db') cm))
+            db'))))))
+
 (defn parts-update!
   [{:keys [arity-data] :as db} source-cm-key]
+  (prn :parts-update :from-key source-cm-key)
   (fixed-items-update-cms! db source-cm-key)
   (arity-update-cms! db source-cm-key (first arity-data))
   (attrs-update-cms! db source-cm-key))
 
 (reg-event-db
-  ::transact-whole-form
-  (fn [db [_ whole-form-text]]
-    (let [updates (text->spec-data whole-form-text)
-          db'     (merge db updates)]
-      (parts-update! db' :defn.form.cm)
-      db')))
-
-(reg-event-db
-  ::set-view
+  ::set-whole-form
   (fn [db [_ var-id]]
     (when-let [cm (get-in db [:defn.form.cm :cm])]
       (let [{:keys [ref-conformed ref-name]} (db var-id)
             visibility {:visible-form-id var-id :the-defn-form ref-name}
-            defaults   {:meta nil :docstring nil}           ;; lift these so others can use?
-            db'        (merge db visibility defaults (conformed->spec-data ref-conformed))]
+            db'        (merge db visibility (conformed->spec-data ref-conformed))]
         (update-cm! cm (format-tx (:defn.text db') cm))
-        (parts-update! db' :defn.form.cm)
-        (cljs.pprint/pprint [:conformed (:defn.conformed db')])
+        (and (:defn.conformed db') (parts-update! db' :defn.form.cm))
         db'))))
+
+(reg-event-db
+  ::whole-form-tx
+  (fn [db [_ cm-name tx]]
+    (-> (get-in db [cm-name :cm]) (update-cm! tx))
+    (let [text (extract-tx-text tx)
+          db'  (merge db (text->spec-data text))]
+      (and (:defn.conformed db') (parts-update! db' :defn.form.cm))
+      db')))
 
 ;; Organize it to match the life-cycle:
 
@@ -339,6 +453,7 @@
 ; x --> fn to reflect back the part change to whole
 ; x event to persist changes when the form under inspection is changed
 
+;; TODO - set some warnings if not conformed
 
 
 

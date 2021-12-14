@@ -123,7 +123,7 @@
                    :ns (editor ::ns-events/set-cm+name ::ns-events/part-edit))}])))
 
 (defn form-editor
-  [{:keys [data text-key cm-key tx-event-name cm-event-name] :as x}]
+  [{:keys [data text-key cm-key tx-event-name cm-event-name]}]
   (let [initial-document (-> (get-in data [:form text-key])
                              (zprint-file-str ::editable-form))
         !mount           (fn [comp]
@@ -149,7 +149,7 @@
   (form-editor {:data          form-data
                 :text-key      :defn.text
                 :cm-key        :defn.form
-                :tx-event-name ::defn-events/fn-whole-form-tx
+                :tx-event-name ::defn-events/whole-form-tx
                 :cm-event-name ::defn-events/set-cm+name}))
 
 (defn ns-form-editor
@@ -317,7 +317,8 @@
   (let [form-data (re-frame/subscribe [::subs/current-form-data])]
     (when @form-data
       (condp = (:type @form-data)
-        :defn [defn-parts (get-in @form-data [:form :single-arity?]) (get-in @form-data [:form :arity-data])]
+        :defn (let [{:keys [single-arity? arity-data]} (:form @form-data)]
+                [defn-parts single-arity? arity-data])
         :def [def-parts]
         :ns [ns-parts @form-data]
         ;; TODO - improve default behaviour ...

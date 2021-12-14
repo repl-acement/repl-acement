@@ -20,7 +20,7 @@
   (fn [[var-type var-id]]
     (condp = var-type
       :def (re-frame/dispatch [::def-events/set-view var-id])
-      :defn (re-frame/dispatch [::defn-events/set-view var-id])
+      :defn (re-frame/dispatch [::defn-events/set-whole-form var-id])
       :ns (re-frame/dispatch [::ns-events/set-view var-id]))))
 
 (reg-event-fx
@@ -95,7 +95,7 @@
       (doall (map (fn [xform]
                     (doall (map #(apply-defn-transforms % xform) joined-forms+ids)))
                   active-xforms)))
-    (re-frame/dispatch [::defn-events/set-view (:visible-form-id db)])))
+    (re-frame/dispatch [::defn-events/set-whole-form (:visible-form-id db)])))
 
 (reg-fx
   ::defn-transforms-off
