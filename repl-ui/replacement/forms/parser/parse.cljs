@@ -10,7 +10,9 @@
         reader (readers/source-logging-push-back-reader ns-text)]
     (reduce (fn [forms [form _]]
               (if (= form EOF)
-                (reduced forms)
+                (if (= 1 (count forms))
+                  (reduced (first forms))
+                  (reduced forms))
                 (conj forms form)))
             [] (repeatedly #(reader/read+string {:eof EOF :read-cond :allow} reader)))))
 

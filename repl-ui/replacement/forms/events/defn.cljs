@@ -113,7 +113,8 @@
   "Insert `new-value` for :body into the params at `index` (or 0) of the `conformed-data`"
   [conformed-data new-value index]
   (let [index       (or index 0)
-        index-count (volatile! 0)]
+        index-count (volatile! 0)
+        new-body    (if (seq? (first new-value)) new-value [new-value])]
     (walk/postwalk
       (fn [node]
         (cond
@@ -121,12 +122,12 @@
                (vector? node)) (cond
                                  ;; There is an existing prepost property at the index
                                  (and (= (first node) :prepost+body))
-                                 [:prepost+body (assoc (last node) :body new-value)]
+                                 [:prepost+body (assoc (last node) :body new-body)]
 
                                  ;; There is not an existing prepost property at the index
                                  (and (= (first node) :body)
                                       (= (first (last node)) :body))
-                                 [:body [:body new-value]]
+                                 [:body [:body new-body]]
 
                                  :default node)
 
