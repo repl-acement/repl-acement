@@ -4,7 +4,7 @@
             [cljs.spec.alpha :as s]
             [replacement.structure.form-specs :as form-specs]))
 
-(defn read-whole-ns
+(defn read-whole-string
   [ns-text]
   (let [EOF    :EOF
         reader (readers/source-logging-push-back-reader ns-text)]
@@ -68,8 +68,13 @@
     [clojure.core.async]
     [zprint.core :as zp :refer [zprint-file-str]]))
 
+(def app \"replace-ment\")
+
 (def themes {:day   :light
              :night :dark})
+
+(def outputs {:terminal :mainframe
+              :browser :modern})
 
 (def theme (atom :day))
 
@@ -86,7 +91,8 @@
   {:pre [(outputs output)]}
   (apply-theme output :terminal))
   ([output device]
-   (str \" To be implemented \" output \" for \" device))
+  {:pre [(outputs output)]}
+  (str \" To be implemented \" output \" for \" device))
   {:stub true})")
 
 (def menthol

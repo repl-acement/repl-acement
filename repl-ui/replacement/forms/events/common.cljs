@@ -27,11 +27,38 @@
    (when event-args
      (re-frame/dispatch event-args))))
 
+(defn update-cms!
+  [changes]
+  (doall (map (fn [{:keys [cm tx]}] (update-cm cm tx)) changes)))
+
 (defn- replacement-tx
   [cm text]
   (let [cm-state   (-> cm .-state)
         doc-length (-> cm-state .-doc .-length)]
     (.update cm-state (clj->js {:changes {:from 0 :to doc-length :insert text}}))))
+
+(defn fix-width-format
+  ([text]
+   (fix-width-format text 40))
+  ([text width]
+   (zprint-file-str text ::fix-width-format {:width width})))
+
+(defn- format-tx
+  [text cm]
+  (->> text fix-width-format (replacement-tx cm)))
+
+(defn update-cm-states
+  [db data cms cm-key]
+  (if-let [cm (get-in db [cm-key :cm])]
+    (let [property-name (wiring/cm-name->comp-name cm-key)
+          data          (get data property-name)
+          text          (if (seq? data)
+                          (apply str (interpose "\n" (map pr-str data)))
+                          (pr-str data))
+          formatted     (fix-width-format text)
+          tx            (replacement-tx cm formatted)]
+      (conj cms {:cm cm :tx tx}))
+    cms))
 
 ;; Good idea or just use the CLJ spec names?
 (def def-parts [::def.name ::def.docstring ::def.init-expr])
@@ -94,15 +121,6 @@
   {:def.name      (:var-name def-data)
    :def.docstring (:docstring def-data)
    :def.init-expr (:init-expr def-data)})
-
-(defn update-cm-states
-  [db def-data cms cm-key]
-  (if-let [cm (get-in db [cm-key :cm])]
-    (let [def-property-name (wiring/cm-name->comp-name cm-key)
-          new-text          (pr-str (get def-data def-property-name))
-          tx                (replacement-tx cm new-text)]
-      (conj cms {:cm cm :tx tx}))
-    cms))
 
 (reg-event-fx
   ::def-fixed-items-update-cms

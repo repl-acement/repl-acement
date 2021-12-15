@@ -71,7 +71,7 @@
 (defn- default-ns-data
   [ns-data-str]
   (->> ns-data-str
-       (form-parser/read-whole-ns)
+       (form-parser/read-whole-string)
        (form-parser/whole-ns->forms)
        (form-parser/add-reference-data)
        (ns-forms)))

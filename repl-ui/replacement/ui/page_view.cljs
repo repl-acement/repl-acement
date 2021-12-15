@@ -29,6 +29,7 @@
             [re-com.splits :refer [hv-split-args-desc]]
             [re-com.tabs :refer [vertical-pill-tabs horizontal-tabs]]
             [re-frame.core :as re-frame]
+            [replacement.forms.events.common :as common-events]
             [replacement.forms.events.def :as def-events]
             [replacement.forms.events.defn :as defn-events]
             [replacement.forms.events.ns :as ns-events]
@@ -104,12 +105,12 @@
   "Produces a function to act on a code mirror view with the given cm-name
   using an optional initial document. An empty string is used if no
   document is provided."
-  ([cm-name cm-event-name edit-event-name]
-   (comp-editor cm-name "" cm-event-name edit-event-name))
-  ([cm-name initial-document cm-event-name edit-event-name]
+  ([cm-name edit-event-name]
+   (comp-editor cm-name "" edit-event-name))
+  ([cm-name initial-document edit-event-name]
    (fn [dom-element]
      (let [!view (comp-editor-view dom-element initial-document cm-name edit-event-name)]
-       (re-frame/dispatch-sync [cm-event-name !view cm-name])))))
+       (re-frame/dispatch-sync [::common-events/set-cm+name !view cm-name])))))
 
 (defn part-editor
   ([cm-name part-type]
@@ -117,10 +118,10 @@
   ([cm-name part-type document]
    (let [editor (partial comp-editor cm-name document)]
      [:div {:ref (condp = part-type
-                   :req-libs (editor ::req-lib-events/set-cm+name ::req-lib-events/part-edit)
-                   :def (editor ::def-events/set-cm+name ::def-events/part-edit)
-                   :defn (editor ::defn-events/set-cm+name ::defn-events/part-edit)
-                   :ns (editor ::ns-events/set-cm+name ::ns-events/part-edit))}])))
+                   :req-libs (editor ::req-lib-events/part-edit)
+                   :def (editor ::def-events/part-edit)
+                   :defn (editor ::defn-events/part-edit)
+                   :ns (editor ::ns-events/part-edit))}])))
 
 (defn form-editor
   [{:keys [data text-key cm-key tx-event-name cm-event-name]}]
@@ -142,7 +143,7 @@
                 :text-key      :def.text
                 :cm-key        :def.form
                 :tx-event-name ::def-events/def-whole-form-tx
-                :cm-event-name ::def-events/set-cm+name}))
+                :cm-event-name ::common-events/set-cm+name}))
 
 (defn defn-form-editor
   [form-data]
@@ -150,7 +151,7 @@
                 :text-key      :defn.text
                 :cm-key        :defn.form
                 :tx-event-name ::defn-events/whole-form-tx
-                :cm-event-name ::defn-events/set-cm+name}))
+                :cm-event-name ::common-events/set-cm+name}))
 
 (defn ns-form-editor
   [form-data]
@@ -158,7 +159,7 @@
                 :text-key      :ns.text
                 :cm-key        :ns.form
                 :tx-event-name ::ns-events/whole-form-tx
-                :cm-event-name ::ns-events/set-cm+name}))
+                :cm-event-name ::common-events/set-cm+name}))
 
 (defn result-view [{:keys [val]}]
   (let [!mount (fn [comp]
@@ -255,7 +256,7 @@
                                     arity-data)
         selected-var   (r/atom 0)
         common-parts   (or @editable-defn-parts
-                           (reset! editable-defn-parts (defn-component-parts defn-events/common-parts)))]
+                           (reset! editable-defn-parts (defn-component-parts defn-events/fixed-parts)))]
     [v-box :gap "10px" :children
      [[v-box :gap "10px" :children common-parts]
       (when-not single-arity?
