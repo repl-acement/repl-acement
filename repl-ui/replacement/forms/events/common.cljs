@@ -39,7 +39,7 @@
 
 (defn fix-width-format
   ([text]
-   (fix-width-format text 40))
+   (fix-width-format text 60))
   ([text width]
    (zprint-file-str text ::fix-width-format {:width width})))
 

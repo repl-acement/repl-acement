@@ -137,6 +137,16 @@
           :default node))
       conformed-data)))
 
+(defn set-extra
+  "Insert `new-value` for :attr-map after the multi-arities in the `conformed-data`"
+  [conformed-data new-value]
+  (let [tail (get-in conformed-data [:defn-args :fn-tail])]
+    (if (some-> tail first (= :arity-n))
+      (update-in conformed-data [:defn-args :fn-tail]
+                 (fn [[arity bodies]]
+                   [arity (assoc bodies :attr-map new-value)]))
+      conformed-data)))
+
 ;; Specs that are in clojure.core.specs.alpha but are not named
 (s/def ::optional-string (s/nilable string?))
 (s/def ::optional-map (s/nilable map?))
@@ -162,7 +172,10 @@
             :defn.body      {:name   :body
                              :spec   ::body
                              :arity? true
-                             :path   #(set-body %1 %2 %3)}})
+                             :path   #(set-body %1 %2 %3)}
+            :extra-meta     {:name :attr-map
+                             :spec ::optional-map
+                             :path #(set-extra %1 %2)}})
 
 (defn- conformed-data->properties
   "Function to automate conformed form data to form specific properties"
