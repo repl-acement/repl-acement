@@ -43,12 +43,14 @@
 
 (def theme
   (.theme EditorView
-          (j/lit {".cm-content"             {:white-space "pre-wrap"
+          (j/lit {"&"                       {:font-size "16px"
+                                             }
+                  ".cm-content"             {:white-space "pre-wrap"
                                              :padding     "10px 0"}
                   "&.cm-focused"            {:outline "none"}
                   ".cm-line"                {:padding     "0 9px"
                                              :line-height "1.6"
-                                             :font-size   "14px"
+                                             :font-size   "16px"
                                              :font-family "var(--code-font)"}
                   ".cm-matchingBracket"     {:border-bottom "1px solid #ff0000"
                                              :color         "inherit"}
@@ -81,6 +83,26 @@
       (.. EditorState -allowMultipleSelections (of true))
       cm-clj/default-extensions
       (.. EditorView -editable (of false))])
+
+(defn linux? []
+  (some? (re-find #"(Linux)|(X11)" js/navigator.userAgent)))
+
+(defn mac? []
+  (and (not (linux?))
+       (some? (re-find #"(Mac)|(iPhone)|(iPad)|(iPod)" js/navigator.platform))))
+
+(defn key-mapping []
+  (cond-> {"ArrowUp"    "↑"
+           "ArrowDown"  "↓"
+           "ArrowRight" "→"
+           "ArrowLeft"  "←"
+           "Mod"        "Ctrl"}
+          (mac?)
+          (merge {"Alt"   "⌥"
+                  "Shift" "⇧"
+                  "Enter" "⏎"
+                  "Ctrl"  "⌃"
+                  "Mod"   "⌘"})))
 
 (defn editor-view
   [component initial-document event-name index]
@@ -176,24 +198,6 @@
         (prn :result-box (:val @results))
         (when @results [result-view @results])))]])
 
-(defn form-view
-  []
-  (let [editable-forms (atom {})]
-    (fn []
-      (let [form-data (re-frame/subscribe [::subs/current-form-data])]
-        (when @form-data
-          [v-box :width "600px" :children
-           [[title :level :level2 :label (:name @form-data)]
-            (condp = (:type @form-data)
-              :def (or (:var-form @editable-forms)
-                       (:var-form (swap! editable-forms assoc :var-form [var-form-editor @form-data])))
-              :defn (or (:defn-form @editable-forms)
-                        (:defn-form (swap! editable-forms assoc :defn-form [defn-form-editor @form-data])))
-              :ns (or (:ns-form @editable-forms)
-                      (:ns-form (swap! editable-forms assoc :ns-form [ns-form-editor @form-data])))
-              ;; TODO - improve default behaviour ...
-              [label :label "Unknown form"])]])))))
-
 (defn prepend-index
   [arity-index n-arities label]
   (if (>= 1 n-arities)
@@ -212,7 +216,7 @@
   ([form-type part-name label-text document]
    [h-box :gap "5px" :align :center :justify :start
     :children
-    [[label :width "50px" :style {:font-weight :bold} :label label-text]
+    [[label :width "50px" :style {:font-weight :bold :font-size "16px"} :label label-text]
      [gap :size "10px"]
      [part-editor (wiring/comp-name->cm-name part-name) form-type document]]]))
 
@@ -236,56 +240,65 @@
   []
   (let [arity-parts (or @editable-defn-arity-parts
                         (reset! editable-defn-arity-parts (defn-component-parts defn-events/arity-parts)))]
-    [v-box :gap "10px" :width "500px" :children arity-parts]))
+    [v-box :gap "10px" :width "800px" :children arity-parts]))
+
+(def editable-defn-multi-attrs (r/atom nil))
 
 (defn defn-multi-attrs
   []
-  (let [editable-defn-multi-attrs (atom nil)]
-    (fn []
-      (let [attrs (or @editable-defn-multi-attrs
-                      (reset! editable-defn-multi-attrs (defn-component-parts defn-events/multi-arity-attrs)))]
-        [v-box :gap "10px" :width "500px" :children attrs]))))
+  (let [attrs (or @editable-defn-multi-attrs
+                  (reset! editable-defn-multi-attrs (defn-component-parts defn-events/multi-arity-attrs)))]
+    [v-box :gap "10px" :width "800px" :children
+     [[gap :size "10px"]
+      [label :style {:font-size "16px" :color :gray} :label "Multi Arity Metadata"]
+      [line :color "#D8D8D8"]
+      (first attrs)]]))
 
-(def editable-defn-parts (atom nil))
+(def editable-defn-parts (r/atom nil))
 
 (defn defn-parts
-  [single-arity? arity-data]
-  (let [arity-elements (map-indexed (fn [idx _]
+  [{:keys [form]}]
+  (prn ::defn-parts)
+  (let [arity-index @(re-frame/subscribe [::subs/arity-index])
+        {:keys [single-arity? arity-data]} form
+        arity-elements (map-indexed (fn [idx _]
                                       {:id    idx
                                        :label (str "Arity " (inc idx))})
                                     arity-data)
-        selected-var   (r/atom 0)
         common-parts   (or @editable-defn-parts
                            (reset! editable-defn-parts (defn-component-parts defn-events/fixed-parts)))]
+    (re-frame/dispatch [::defn-events/set-whole-form arity-index])
     [v-box :gap "10px" :children
      [[v-box :gap "10px" :children common-parts]
-      (when-not single-arity?
-        [defn-multi-attrs])
       [horizontal-tabs
-       :model selected-var
+       :style {:font-size "16px"}
+       :model arity-index
        :tabs arity-elements
        :on-change (fn [index]
-                    (re-frame/dispatch [::defn-events/arity-update-cms index])
-                    (reset! selected-var index))]
-      [defn-arity-parts]]]))
+                    (re-frame/dispatch [::defn-events/arity-update-cms index]))]
+      [defn-arity-parts]
+      (when-not single-arity?
+        [defn-multi-attrs])]]))
+
+(def editable-def-parts (atom nil))
 
 (defn def-parts
-  []
-  (let [editable-def-parts (atom nil)]
-    (fn []
-      (re-frame/dispatch [::def-events/fixed-items-update-cms])
-      (let [parts (or @editable-def-parts
-                      (reset! editable-def-parts (mapcat (fn [part-name]
-                                                           [[component-part :def part-name (pretty-label part-name)]
-                                                            [line :color "#D8D8D8"]])
-                                                         def-events/parts)))]
-        [v-box :width "500px" :gap "10px" :children parts]))))
+  [{:keys [id]}]
+  (let [parts (or @editable-def-parts
+                  (reset! editable-def-parts (mapcat (fn [part-name]
+                                                       [[component-part :def part-name (pretty-label part-name)]
+                                                        [line :color "#D8D8D8"]])
+                                                     def-events/parts)))]
+    (re-frame/dispatch [::def-events/set-view id])
+    [v-box :width "800px" :gap "10px" :children parts]))
+
+(def editable-require-parts (atom nil))
 
 (defn ns-parts
   [form-data]
-  (let [editable-require-parts (atom nil)]
-    (fn []
-      (re-frame/dispatch [::req-lib-events/update-cms 0])
+  (let [structured-view-active? @(re-frame/subscribe [::subs/structured-view?])]
+    (when structured-view-active?
+      (prn ::ns-parts :form-keys (keys (:form form-data)))
       (let [requires      (map-indexed (fn [idx {:keys [require]}]
                                          (let [{:keys [lib]} require]
                                            {:id    idx
@@ -298,52 +311,45 @@
                                      [line :color "#D8D8D8"]])
                                   ns-events/parts)
             selected-var  (r/atom (:id (first requires)))]
+        (re-frame/dispatch [::ns-events/transact-whole-form (get-in form-data [:form :ns.text])])
         (fn []
-          [v-box :width "500px" :children
+          [v-box :width "800px" :children
            [[v-box :gap "5px" :children first-parts]
             [gap :size "20px"]
-            [label :style {:font-weight :bold} :label "Requires"]
+            [label :style {:font-weight :bold :font-size "16px"} :label "Requires"]
             [gap :size "20px"]
-            [h-box :gap "25px" :children
+            [h-box :style {:font-size "16px"} :gap "25px" :children
              [[vertical-pill-tabs
                :model selected-var
                :tabs requires
                :on-change (fn [index]
                             (re-frame/dispatch [::req-lib-events/update-cms index])
                             (reset! selected-var index))]
-              [v-box :width "400px" :children ns-part-forms]]]]])))))
+              [v-box :width "500px" :children ns-part-forms]]]]])))))
 
-(defn form-parts
-  []
-  (let [form-data (re-frame/subscribe [::subs/current-form-data])]
-    (when @form-data
-      (condp = (:type @form-data)
-        :defn (let [{:keys [single-arity? arity-data]} (:form @form-data)]
-                [defn-parts single-arity? arity-data])
-        :def [def-parts]
-        :ns [ns-parts @form-data]
-        ;; TODO - improve default behaviour ...
-        [label :label "Unknown parts"]))))
+(defn view-toggle
+  [form-data structured?]
+  [md-icon-button :md-icon-name (if structured? "zmdi-code-setting" "zmdi-wrap-text")
+   :tooltip (str "Edit using " (if structured? "structure" "text"))
+   :on-click (fn []
+               (re-frame/dispatch [::whole-ns/swap-structured-view])
+               (re-frame/dispatch [::whole-ns/set-view form-data]))])
 
-(defn linux? []
-  (some? (re-find #"(Linux)|(X11)" js/navigator.userAgent)))
 
-(defn mac? []
-  (and (not (linux?))
-       (some? (re-find #"(Mac)|(iPhone)|(iPad)|(iPod)" js/navigator.platform))))
-
-(defn key-mapping []
-  (cond-> {"ArrowUp"    "↑"
-           "ArrowDown"  "↓"
-           "ArrowRight" "→"
-           "ArrowLeft"  "←"
-           "Mod"        "Ctrl"}
-          (mac?)
-          (merge {"Alt"   "⌥"
-                  "Shift" "⇧"
-                  "Enter" "⏎"
-                  "Ctrl"  "⌃"
-                  "Mod"   "⌘"})))
+(defn editable-parts
+  [form-data]
+  (let [structured-view-active? @(re-frame/subscribe [::subs/structured-view?])]
+    (when structured-view-active?
+      [h-box :children
+       [[v-box :width "800px" :gap "20px" :children
+         [[title :level :level2 :label (:name form-data)]
+          (condp = (:type form-data)
+            :defn [defn-parts form-data]
+            :def [def-parts form-data]
+            :ns [ns-parts form-data]
+            ;; TODO - improve default behaviour ...
+            [label :label "Unknown parts"])]]
+        [view-toggle form-data false]]])))
 
 (defn type-label
   [ref-type]
@@ -352,6 +358,34 @@
     :defn "zmdi-functions"
     :ns "zmdi-format-list-bulleted"
     "zmdi-help"))
+
+(def editable-forms (atom nil))
+
+(defn editable-text
+  [form-data]
+  (let [structured-view-active? @(re-frame/subscribe [::subs/structured-view?])]
+    (when-not structured-view-active?
+      [h-box :children
+       [[v-box :width "800px" :gap "20px" :children
+         [[title :level :level2 :label (:name form-data)]
+          (condp = (:type form-data)
+            :def (or (:var-form @editable-forms)
+                     (:var-form (swap! editable-forms assoc :var-form [var-form-editor form-data])))
+            :defn (or (:defn-form @editable-forms)
+                      (:defn-form (swap! editable-forms assoc :defn-form [defn-form-editor form-data])))
+            :ns (or (:ns-form @editable-forms)
+                    (:ns-form (swap! editable-forms assoc :ns-form [ns-form-editor form-data])))
+            ;; TODO - improve default behaviour ...
+            [label :label "Unknown form"])]]
+        [view-toggle form-data true]]])))
+
+(defn form-view
+  []
+  (let [form-data @(re-frame/subscribe [::subs/current-form-data])]
+    (prn ::form-view (keys (:form form-data)))
+    [h-box :children
+     [[editable-parts form-data]
+      [editable-text form-data]]]))
 
 (defn var-view
   [var-data default-selection]
@@ -365,14 +399,16 @@
                            var-data)
         type-mapping (apply merge (map #(hash-map (:id %) (select-keys % [:name :type])) ns-vars))
         selected-var (r/atom default-selection)]
-    [v-box :gap "5px"
+    [v-box :style {:font-size "16px"} :gap "5px"
      :children
      [[vertical-pill-tabs
        :model selected-var
        :tabs ns-vars
        :on-change (fn [var-id]
-                    (let [{:keys [type name]} (type-mapping var-id)]
-                      (re-frame/dispatch-sync [::whole-ns/current-form-data {:id var-id :type type :name name}])
+                    (let [{:keys [type name]} (type-mapping var-id)
+                          form-data {:id var-id :type type :name name}]
+                      (re-frame/dispatch-sync [::whole-ns/current-form-data form-data])
+                      (re-frame/dispatch-sync [::whole-ns/set-view form-data])
                       (reset! selected-var var-id)))]]]))
 
 (defn format-ns
@@ -384,15 +420,17 @@
 
 (defn ns-view
   [the-ns-name]
-  (let [first-time-ns-view (atom true)]
+  (let [first-time-ns-view (volatile! true)]
     (fn []
       (let [ns-data (re-frame/subscribe [::subs/id-index the-ns-name])
             var-id  (and @ns-data (first (last @ns-data)))]
         (when var-id
-          (let [{:keys [type name]} (last (last @ns-data))]
+          (let [{:keys [type name]} (last (last @ns-data))
+                form-data {:id var-id :type type :name name}]
             (when @first-time-ns-view
-              (re-frame/dispatch-sync [::whole-ns/current-form-data {:id var-id :type type :name name}])
-              (reset! first-time-ns-view false)))
+              (re-frame/dispatch-sync [::whole-ns/current-form-data form-data])
+              (re-frame/dispatch [::whole-ns/set-view form-data])
+              (vreset! first-time-ns-view false)))
           [v-box :width "175px" :gap "5px"
            :children
            [[title :level :level2 :label (format-ns the-ns-name)]
@@ -434,8 +472,7 @@
         [h-box :align :start :gap "75px"
          :children
          [[ns-view @the-ns-name]
-          [form-view]
-          [form-parts]]]]])))
+          [form-view]]]]])))
 
 (defn render []
   (rdom/render [whole-ns-view] (js/document.getElementById "form-editor"))

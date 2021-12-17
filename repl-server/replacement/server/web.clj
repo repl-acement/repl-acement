@@ -54,46 +54,7 @@
      (page/include-css "vendor/css/material-design-iconic-font.min.css")
      (page/include-css "vendor/css/re-com.css")
 
-     [:script {:src "https://twemoji.maxcdn.com/v/latest/twemoji.min.js" :crossorigin "anonymous"}]
-
-
-     [:style "/* Use Fira Mono without having to clutter up the demo with a custom CM theme. */
-      .cm-scroller { font-family: var(--code-font) !important; }
-      .kbd {
-        box-shadow: 0 2px 2px rgba(0,0,0,.1);
-        background: white;
-        border: 1px solid rgba(0,0,0,.15);
-        border-radius: 3px;
-        font-size: 0.75em;
-        padding: 2px 5px;
-        position: relative;
-        top: -2px;
-        font-family: var(--code-font);
-        text-transform: uppercase;
-      }
-      img.emoji {
-        height: 1em;
-        width: 1em;
-        margin: 0 .05em 0 .1em;
-        vertical-align: -0.1em;
-        display: inline-block;
-      }
-      .cta img.emoji {
-        margin-right: 0.3em;
-      }
-      @media (max-width: 800px) {
-        .ctas {
-          font-size: 1rem !important;
-        }
-      }
-      @media (max-width: 500px) {
-        .ctas {
-          flex-direction: column;
-        }
-        .ctas .cta {
-          margin-bottom: 0.5rem;
-        }
-      }"]]
+     [:script {:src "https://twemoji.maxcdn.com/v/latest/twemoji.min.js" :crossorigin "anonymous"}]]
     [:body
      [:div#form-editor]
      [:script {:src "js/main.js"}]]))

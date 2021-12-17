@@ -229,9 +229,10 @@
 
 (reg-event-db
   ::arity-update-cms
-  (fn [{:keys [arity-data] :as db} [_ index]]
-    (arity-update-cms! db :none (nth arity-data index))
-    (assoc db :arity-index index)))
+  (fn [{:keys [current-form-data] :as db} [_ index]]
+    (let [arity-data (get-in current-form-data [:form :arity-data])]
+      (arity-update-cms! db :none (nth arity-data index))
+      (assoc db :arity-index index))))
 
 (defn- text->spec-data
   [text]
@@ -308,7 +309,8 @@
             visibility {:visible-form-id var-id :the-defn-form ref-name}
             db'        (merge db visibility (conformed->spec-data ref-conformed))]
         (common/update-cm cm (common/format-tx (:defn.text db') cm))
-        (and (:defn.conformed db') (parts-update! db' :defn.form.cm))
+        (when (:defn.conformed db')
+          (parts-update! db' :defn.form.cm))
         db'))))
 
 (reg-event-db

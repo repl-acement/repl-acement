@@ -162,6 +162,16 @@
     (:current-form-data db)))
 
 (reg-sub
+  ::structured-view?
+  (fn [db]
+    (:structured-view? db)))
+
+(reg-sub
+  ::arity-index
+  (fn [db]
+    (or (:arity-index db) 0)))
+
+(reg-sub
   ::id-index
   (fn [db [_ ns-name]]
     ;; TODO fix this to reduce scanning the whole index

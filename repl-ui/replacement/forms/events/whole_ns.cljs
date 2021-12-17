@@ -17,11 +17,12 @@
 
 (reg-fx
   ::set-form-view
-  (fn [[var-type var-id]]
-    (condp = var-type
-      :def (re-frame/dispatch [::def-events/set-view var-id])
-      :defn (re-frame/dispatch [::defn-events/set-whole-form var-id])
-      :ns (re-frame/dispatch [::ns-events/set-view var-id]))))
+  (fn [{:keys [type id]}]
+    (prn ::set-form-view :type type)
+    (condp = type
+      :def (re-frame/dispatch [::def-events/set-view id])
+      :defn (re-frame/dispatch [::defn-events/set-whole-form id])
+      :ns (re-frame/dispatch [::ns-events/set-view id]))))
 
 (reg-event-fx
   ::current-form-data
@@ -33,13 +34,19 @@
                       :defn (defn-events/conformed->spec-data conformed)
                       :ns (ns-events/conformed->spec-data conformed))]
       {:db             (assoc db :current-form-data (assoc form-data :form full-data))
-       ::set-form-view [type id]})))
+       ::set-form-view form-data})))
+
+(reg-event-fx
+  ::swap-structured-view
+  (fn [{:keys [db]} [_]]
+    {:db             (assoc db :structured-view? (not (get db :structured-view?)))
+     ::set-form-view (:current-form-data db)}))
 
 (reg-event-fx
   ::set-view
-  (fn [{:keys [db]} [_ var-type var-id]]
+  (fn [{:keys [db]} [_ form-data]]
     {:db             db
-     ::set-form-view [var-type var-id]}))
+     ::set-form-view form-data}))
 
 (reg-event-db
   ::update-ref-data

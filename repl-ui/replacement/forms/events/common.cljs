@@ -29,7 +29,10 @@
 
 (defn update-cms!
   [changes]
-  (doall (map (fn [{:keys [cm tx]}] (update-cm cm tx)) changes)))
+  (prn ::update-cms! :changes changes)
+  (doall (map (fn [{:keys [cm tx]}]
+                (prn ::update-cms! :tx-text (extract-tx-text tx))
+                (update-cm cm tx)) changes)))
 
 (defn- replacement-tx
   [cm text]
