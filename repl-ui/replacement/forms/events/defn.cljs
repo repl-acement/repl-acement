@@ -234,6 +234,11 @@
       (arity-update-cms! db :none (nth arity-data index))
       (assoc db :arity-index index))))
 
+(reg-event-db
+  ::set-arity-index
+  (fn [db [_ index]]
+    (assoc db :arity-index index)))
+
 (defn- text->spec-data
   [text]
   (let [data          (rdr/read-string text)
@@ -279,8 +284,8 @@
 (reg-event-db
   ::part-edit
   (fn [db [_ part-cm-name tx]]
-    ;; Always update the transacting code-mirror
-    (-> (get-in db [part-cm-name :cm]) (common/update-cm tx))
+    ;; First update the transacting code-mirror
+    (-> (get-in db [part-cm-name :cm]) (common/update-cm! tx))
     (if-not (js->cljs (.-docChanged tx))
       db
       (let [{:keys [arity-index visible-form-id]} db
@@ -291,8 +296,8 @@
         (if-not (:update updates)
           db
           (let [db' (merge db (conformed->spec-data (:update updates)))
-                cm  (get-in db' [:defn.form.cm :cm])]
-            (common/update-cm cm (common/format-tx (:defn.text db') cm))
+                cm  (-> :db :defn.form.cm :cm)]
+            (->> db' :defn.text (common/format-tx cm) (common/update-cm! cm))
             db'))))))
 
 (defn parts-update!
@@ -302,24 +307,25 @@
   (attrs-update-cms! db source-cm-key))
 
 (reg-event-db
-  ::set-whole-form
+  ::set-form
   (fn [db [_ var-id]]
     (when-let [cm (get-in db [:defn.form.cm :cm])]
       (let [{:keys [ref-conformed ref-name]} (db var-id)
             visibility {:visible-form-id var-id :the-defn-form ref-name}
             db'        (merge db visibility (conformed->spec-data ref-conformed))]
-        (common/update-cm cm (common/format-tx (:defn.text db') cm))
-        (when (:defn.conformed db')
-          (parts-update! db' :defn.form.cm))
+        (->> db' :defn.text (common/format-tx cm) (common/update-cm! cm))
+        (when (:defn.conformed db') (parts-update! db' :defn.form.cm))
         db'))))
 
+;; TODO: Associate the change with the current form and persist it
 (reg-event-db
-  ::whole-form-tx
+  ::form-tx
   (fn [db [_ cm-name tx]]
-    (-> (get-in db [cm-name :cm]) (common/update-cm tx))
+    ;; First update the transacting code-mirror
+    (-> (get-in db [cm-name :cm]) (common/update-cm! tx))
     (let [text (common/extract-tx-text tx)
           db'  (merge db (text->spec-data text))]
-      (and (:defn.conformed db') (parts-update! db' :defn.form.cm))
+      (when (:defn.conformed db') (parts-update! db' cm-name))
       db')))
 
 ;; TODO - persist editing changes

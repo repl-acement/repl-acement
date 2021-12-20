@@ -76,15 +76,31 @@
        (form-parser/add-reference-data)
        (ns-forms)))
 
+(defn- default-form
+  [ns-data]
+  (let [[id {:keys [ref-type ref-name] :as data}] (->> ns-data
+                                                       (filter (fn [[k v]]
+                                                                 (when (= :defn (:ref-type v))
+                                                                   [k v])))
+                                                       last)
+        form-data (whole-ns/parse-form-data id data ref-type)]
+    {:current-form-data (merge {:id   id
+                                :type ref-type
+                                :name ref-name}
+                               form-data)}))
+
 ; --- Events ---
 (reg-event-db
   ::initialize-db
   (fn [_ _]
-    (merge {::name             "repl-acement"
-            ::other-visibility true}
-           os-data
-           default-transforms
-           (default-ns-data form-parser/sample))))
+    (let [default-ns           (default-ns-data form-parser/sample)
+          default-current-form (default-form default-ns)]
+      (merge {::name             "repl-acement"
+              ::other-visibility true}
+             os-data
+             default-transforms
+             default-ns
+             default-current-form))))
 
 (reg-event-db
   ::network-status

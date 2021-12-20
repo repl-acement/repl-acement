@@ -148,7 +148,7 @@
 (defn form-editor
   [{:keys [data text-key cm-key tx-event-name cm-event-name]}]
   (let [initial-document (-> (get-in data [:form text-key])
-                             (zprint-file-str ::editable-form))
+                             common-events/fix-width-format)
         !mount           (fn [comp]
                            (let [cm-name (wiring/comp-name->cm-name cm-key)
                                  !view   (EditorView. #js {:state    (.create EditorState #js {:doc        initial-document
@@ -172,7 +172,7 @@
   (form-editor {:data          form-data
                 :text-key      :defn.text
                 :cm-key        :defn.form
-                :tx-event-name ::defn-events/whole-form-tx
+                :tx-event-name ::defn-events/form-tx
                 :cm-event-name ::common-events/set-cm+name}))
 
 (defn ns-form-editor
@@ -234,6 +234,7 @@
              [line :color "#D8D8D8"]])
           part-list))
 
+;; NO !!! Set it in the DB
 (def editable-defn-arity-parts (atom nil))
 
 (defn defn-arity-parts
@@ -242,6 +243,7 @@
                         (reset! editable-defn-arity-parts (defn-component-parts defn-events/arity-parts)))]
     [v-box :gap "10px" :width "800px" :children arity-parts]))
 
+;; NO !!! Set it in the DB
 (def editable-defn-multi-attrs (r/atom nil))
 
 (defn defn-multi-attrs
@@ -254,12 +256,12 @@
       [line :color "#D8D8D8"]
       (first attrs)]]))
 
+;; NO !!! Set it in the DB
 (def editable-defn-parts (r/atom nil))
 
 (defn defn-parts
   [{:keys [form]}]
-  (prn ::defn-parts)
-  (let [arity-index @(re-frame/subscribe [::subs/arity-index])
+  (let [arity-index    @(re-frame/subscribe [::subs/arity-index])
         {:keys [single-arity? arity-data]} form
         arity-elements (map-indexed (fn [idx _]
                                       {:id    idx
@@ -267,7 +269,9 @@
                                     arity-data)
         common-parts   (or @editable-defn-parts
                            (reset! editable-defn-parts (defn-component-parts defn-events/fixed-parts)))]
-    (re-frame/dispatch [::defn-events/set-whole-form arity-index])
+    (prn :arity-elements arity-elements :form form)
+    ;; NO!!!!
+    (re-frame/dispatch [::defn-events/set-form arity-index])
     [v-box :gap "10px" :children
      [[v-box :gap "10px" :children common-parts]
       [horizontal-tabs
@@ -280,6 +284,7 @@
       (when-not single-arity?
         [defn-multi-attrs])]]))
 
+;; NO !!! Set it in the DB
 (def editable-def-parts (atom nil))
 
 (defn def-parts
@@ -289,16 +294,17 @@
                                                        [[component-part :def part-name (pretty-label part-name)]
                                                         [line :color "#D8D8D8"]])
                                                      def-events/parts)))]
+    ;; NO !!!
     (re-frame/dispatch [::def-events/set-view id])
     [v-box :width "800px" :gap "10px" :children parts]))
 
+;; NO !!! Set it in the DB
 (def editable-require-parts (atom nil))
 
 (defn ns-parts
   [form-data]
   (let [structured-view-active? @(re-frame/subscribe [::subs/structured-view?])]
     (when structured-view-active?
-      (prn ::ns-parts :form-keys (keys (:form form-data)))
       (let [requires      (map-indexed (fn [idx {:keys [require]}]
                                          (let [{:keys [lib]} require]
                                            {:id    idx
@@ -311,6 +317,7 @@
                                      [line :color "#D8D8D8"]])
                                   ns-events/parts)
             selected-var  (r/atom (:id (first requires)))]
+        ;; NO !!!
         (re-frame/dispatch [::ns-events/transact-whole-form (get-in form-data [:form :ns.text])])
         (fn []
           [v-box :width "800px" :children
@@ -328,12 +335,12 @@
               [v-box :width "500px" :children ns-part-forms]]]]])))))
 
 (defn view-toggle
-  [form-data structured?]
+  [structured?]
   [md-icon-button :md-icon-name (if structured? "zmdi-code-setting" "zmdi-wrap-text")
    :tooltip (str "Edit using " (if structured? "structure" "text"))
    :on-click (fn []
-               (re-frame/dispatch [::whole-ns/swap-structured-view])
-               (re-frame/dispatch [::whole-ns/set-view form-data]))])
+               (re-frame/dispatch-sync [::whole-ns/set-view])
+               (re-frame/dispatch [::whole-ns/swap-structured-view]))])
 
 
 (defn editable-parts
@@ -349,7 +356,7 @@
             :ns [ns-parts form-data]
             ;; TODO - improve default behaviour ...
             [label :label "Unknown parts"])]]
-        [view-toggle form-data false]]])))
+        [view-toggle false]]])))
 
 (defn type-label
   [ref-type]
@@ -377,15 +384,13 @@
                     (:ns-form (swap! editable-forms assoc :ns-form [ns-form-editor form-data])))
             ;; TODO - improve default behaviour ...
             [label :label "Unknown form"])]]
-        [view-toggle form-data true]]])))
+        [view-toggle true]]])))
 
 (defn form-view
-  []
-  (let [form-data @(re-frame/subscribe [::subs/current-form-data])]
-    (prn ::form-view (keys (:form form-data)))
-    [h-box :children
-     [[editable-parts form-data]
-      [editable-text form-data]]]))
+  [form-data]
+  [h-box :children
+   [[editable-parts form-data]
+    [editable-text form-data]]])
 
 (defn var-view
   [var-data default-selection]
@@ -398,6 +403,7 @@
                                                 [label :label name]]]})))
                            var-data)
         type-mapping (apply merge (map #(hash-map (:id %) (select-keys % [:name :type])) ns-vars))
+        ;; TODO fix to have it come from a subs
         selected-var (r/atom default-selection)]
     [v-box :style {:font-size "16px"} :gap "5px"
      :children
@@ -408,7 +414,7 @@
                     (let [{:keys [type name]} (type-mapping var-id)
                           form-data {:id var-id :type type :name name}]
                       (re-frame/dispatch-sync [::whole-ns/current-form-data form-data])
-                      (re-frame/dispatch-sync [::whole-ns/set-view form-data])
+                      (re-frame/dispatch-sync [::whole-ns/set-view])
                       (reset! selected-var var-id)))]]]))
 
 (defn format-ns
@@ -419,22 +425,13 @@
       [label :style {:color "blue" :font-weight :bolder} :label last-part]]]))
 
 (defn ns-view
-  [the-ns-name]
-  (let [first-time-ns-view (volatile! true)]
-    (fn []
-      (let [ns-data (re-frame/subscribe [::subs/id-index the-ns-name])
-            var-id  (and @ns-data (first (last @ns-data)))]
-        (when var-id
-          (let [{:keys [type name]} (last (last @ns-data))
-                form-data {:id var-id :type type :name name}]
-            (when @first-time-ns-view
-              (re-frame/dispatch-sync [::whole-ns/current-form-data form-data])
-              (re-frame/dispatch [::whole-ns/set-view form-data])
-              (vreset! first-time-ns-view false)))
-          [v-box :width "175px" :gap "5px"
-           :children
-           [[title :level :level2 :label (format-ns the-ns-name)]
-            (var-view @ns-data var-id)]])))))
+  [the-ns-name {:keys [id]}]
+  (let [ns-data (re-frame/subscribe [::subs/id-index the-ns-name])]
+    (when id
+      [v-box :width "175px" :gap "5px"
+       :children
+       [[title :level :level2 :label (format-ns the-ns-name)]
+        (var-view @ns-data id)]])))
 
 (defn transformers []
   (let [prn-ticked? (r/atom false)
@@ -463,16 +460,16 @@
     [transformers]]])
 
 (defn whole-ns-view []
-  (let [the-ns-name (re-frame/subscribe [::subs/the-ns-name])]
-    (when @the-ns-name
-      [v-box :gap "20px" :justify :center :padding "15px"
+  (let [the-ns-name @(re-frame/subscribe [::subs/the-ns-name])
+        current-form @(re-frame/subscribe [::subs/current-form-data])]
+    [v-box :gap "20px" :justify :center :padding "15px"
+     :children
+     [[transform-options]
+      [line :color "#D8D8D8"]
+      [h-box :align :start :gap "75px"
        :children
-       [[transform-options]
-        [line :color "#D8D8D8"]
-        [h-box :align :start :gap "75px"
-         :children
-         [[ns-view @the-ns-name]
-          [form-view]]]]])))
+       [[ns-view the-ns-name current-form]
+        [form-view current-form]]]]]))
 
 (defn render []
   (rdom/render [whole-ns-view] (js/document.getElementById "form-editor"))

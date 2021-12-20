@@ -16,8 +16,8 @@
   ::fn-part-update
   (fn [[cm tx changed?]]
     (if changed?
-      (common/update-cm cm tx [::set-part-in-whole])
-      (common/update-cm cm tx))))
+      (common/update-cm! cm tx [::set-part-in-whole])
+      (common/update-cm! cm tx))))
 
 (reg-event-fx
   ::part-edit
@@ -35,7 +35,7 @@
 (reg-fx
   ::update-cms
   (fn [changes]
-    (doall (map (fn [{:keys [cm tx]}] (common/update-cm cm tx)) changes))))
+    (doall (map (fn [{:keys [cm tx]}] (common/update-cm! cm tx)) changes))))
 
 (defn update-cm-states
   [db defn-data cms cm-key]

@@ -19,9 +19,9 @@
   [^js cm]
   (->> (-> cm .-state .-doc) (.toJSON) ->clj (apply str)))
 
-(defn- update-cm
+(defn- update-cm!
   ([cm tx]
-   (update-cm cm tx nil))
+   (update-cm! cm tx nil))
   ([cm tx event-args]
    (.update cm #js [tx])
    (when event-args
@@ -29,10 +29,8 @@
 
 (defn update-cms!
   [changes]
-  (prn ::update-cms! :changes changes)
   (doall (map (fn [{:keys [cm tx]}]
-                (prn ::update-cms! :tx-text (extract-tx-text tx))
-                (update-cm cm tx)) changes)))
+                (update-cm! cm tx)) changes)))
 
 (defn- replacement-tx
   [cm text]
@@ -47,7 +45,7 @@
    (zprint-file-str text ::fix-width-format {:width width})))
 
 (defn- format-tx
-  [text cm]
+  [cm text]
   (->> text fix-width-format (replacement-tx cm)))
 
 (defn update-cm-states
@@ -70,8 +68,8 @@
   ::fn-part-update
   (fn [[cm tx changed?]]
     (if changed?
-      (update-cm cm tx [::set-part-in-whole])
-      (update-cm cm tx))))
+      (update-cm! cm tx [::set-part-in-whole])
+      (update-cm! cm tx))))
 
 (reg-event-fx
   ::part-edit
@@ -85,8 +83,8 @@
   ::whole-edit
   (fn [[cm tx changed?]]
     (if changed?
-      (update-cm cm tx [::transact-whole-form (extract-tx-text tx)])
-      (update-cm cm tx))))
+      (update-cm! cm tx [::transact-whole-form (extract-tx-text tx)])
+      (update-cm! cm tx))))
 
 (reg-event-fx
   ::def-whole-form-tx
@@ -116,7 +114,7 @@
   ::update-cms
   (fn [changes]
     (doall (map (fn [{:keys [cm tx]}]
-                  (update-cm cm tx))
+                  (update-cm! cm tx))
                 changes))))
 
 (defn- def-data->properties
@@ -174,7 +172,7 @@
   (fn [[cm whole-text]]
     (let [tx (->> (zprint-file-str whole-text ::fn-whole-update)
                   (replacement-tx cm))]
-      (update-cm cm tx))))
+      (update-cm! cm tx))))
 
 (defn- whole-form-updated
   "Scan over all of the active code mirrors that can provide updates
@@ -213,7 +211,7 @@
   (fn [[cm whole-text]]
     (let [tx (->> (zprint-file-str whole-text ::fn-view-update)
                   (replacement-tx cm))]
-      (update-cm cm tx))
+      (update-cm! cm tx))
     (re-frame/dispatch [::def-fixed-items-update-cms])))
 
 (reg-event-fx

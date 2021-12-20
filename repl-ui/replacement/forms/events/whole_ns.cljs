@@ -18,23 +18,39 @@
 (reg-fx
   ::set-form-view
   (fn [{:keys [type id]}]
-    (prn ::set-form-view :type type)
     (condp = type
       :def (re-frame/dispatch [::def-events/set-view id])
-      :defn (re-frame/dispatch [::defn-events/set-whole-form id])
+      :defn (re-frame/dispatch [::defn-events/set-form id])
       :ns (re-frame/dispatch [::ns-events/set-view id]))))
+
+(defn- parse-form-data
+  [id {:keys [ref-type ref-name ref-conformed]} type]
+  (let [form-data (condp = type
+                    :def (def-events/conformed->spec-data ref-conformed)
+                    :defn (defn-events/conformed->spec-data ref-conformed)
+                    :ns (ns-events/conformed->spec-data ref-conformed))]
+    {:id   id
+     :type ref-type
+     :name ref-name
+     :form form-data}))
 
 (reg-event-fx
   ::current-form-data
-  (fn [{:keys [db]} [_ {:keys [id type] :as form-data}]]
-    (let [raw-form  (db id)
-          conformed (:ref-conformed raw-form)
-          full-data (condp = type
-                      :def (def-events/conformed->spec-data conformed)
-                      :defn (defn-events/conformed->spec-data conformed)
-                      :ns (ns-events/conformed->spec-data conformed))]
-      {:db             (assoc db :current-form-data (assoc form-data :form full-data))
+  (fn [{:keys [db]} [_ {:keys [id type]}]]
+    (let [form      (db id)
+          form-data (parse-form-data id form type)]
+      {:db             (assoc db :current-form-data form-data)
        ::set-form-view form-data})))
+
+(reg-event-fx
+  ::set-current-form
+  (fn [{:keys [db]} [_ id]]
+    (let [form      (db id)
+          form-data (parse-form-data id form type)]
+      (prn :form-data form-data)
+      {:db             (assoc db :current-form-data form-data)
+       ::set-form-view form-data})))
+
 
 (reg-event-fx
   ::swap-structured-view
@@ -44,9 +60,9 @@
 
 (reg-event-fx
   ::set-view
-  (fn [{:keys [db]} [_ form-data]]
+  (fn [{:keys [db]} [_]]
     {:db             db
-     ::set-form-view form-data}))
+     ::set-form-view (:current-form-data db)}))
 
 (reg-event-db
   ::update-ref-data
@@ -102,7 +118,7 @@
       (doall (map (fn [xform]
                     (doall (map #(apply-defn-transforms % xform) joined-forms+ids)))
                   active-xforms)))
-    (re-frame/dispatch [::defn-events/set-whole-form (:visible-form-id db)])))
+    (re-frame/dispatch [::defn-events/set-form (:visible-form-id db)])))
 
 (reg-fx
   ::defn-transforms-off

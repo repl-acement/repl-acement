@@ -23,8 +23,8 @@
   ::fn-part-update
   (fn [[cm tx changed?]]
     (if changed?
-      (common/update-cm cm tx [::set-part-in-whole])
-      (common/update-cm cm tx))))
+      (common/update-cm! cm tx [::set-part-in-whole])
+      (common/update-cm! cm tx))))
 
 (reg-event-fx
   ::part-edit
@@ -38,8 +38,8 @@
   ::whole-edit
   (fn [[cm tx changed?]]
     (if changed?
-      (common/update-cm cm tx [::transact-whole-form (common/extract-tx-text tx)])
-      (common/update-cm cm tx))))
+      (common/update-cm! cm tx [::transact-whole-form (common/extract-tx-text tx)])
+      (common/update-cm! cm tx))))
 
 (reg-event-fx
   ::whole-form-tx
@@ -106,7 +106,7 @@
 (reg-fx
   ::update-cms
   (fn [changes]
-    (doall (map (fn [{:keys [cm tx]}] (common/update-cm cm tx)) changes))))
+    (doall (map (fn [{:keys [cm tx]}] (common/update-cm! cm tx)) changes))))
 
 (defn update-cm-states
   [db defn-data cms cm-key]
@@ -170,7 +170,7 @@
   (fn [[cm whole-text]]
     (let [tx (->> (zprint-file-str whole-text ::whole-update)
                   (common/replacement-tx cm))]
-      (common/update-cm cm tx))))
+      (common/update-cm! cm tx))))
 
 (defn- whole-form-updated
   "Scan over all of the active code mirrors that can provide updates
@@ -209,7 +209,7 @@
   (fn [[cm whole-text]]
     (let [tx (->> (zprint-file-str whole-text "whatever" {:width 60})
                   (common/replacement-tx cm))]
-      (common/update-cm cm tx))
+      (common/update-cm! cm tx))
     (re-frame/dispatch [::items-update-cms])))
 
 (reg-event-fx
