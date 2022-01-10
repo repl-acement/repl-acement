@@ -41,6 +41,17 @@
             [replacement.ui.subs :as subs]
             [zprint.core :refer [zprint-file-str]]))
 
+;; TODO - migrate from random data structures to event protocol data structures
+;; Actions:
+;; DONE 1. Have both structures in the re-frame DB
+;; DONE 2. Use the same means to generate IDs for both structures
+;; PLAN 1. Ensure new structures have correct keywords
+;; PLAN 2. Start with `def` working with new data structures
+;; PLAN 2a. Try to create common functions on how to transform the protocol data
+;; PLAN 3. Proceed with `defn` and the new data structures
+;; PLAN 4. Finish up with `ns` working with new data structures
+
+
 (def theme
   (.theme EditorView
           (j/lit {"&"                       {:font-size "16px"
@@ -287,6 +298,7 @@
 ;; NO !!! Set it in the DB
 (def editable-def-parts (atom nil))
 
+;; TODO - fix the init string to be the value from the vector rather than the vector itself
 (defn def-parts
   [{:keys [id]}]
   (let [parts (or @editable-def-parts

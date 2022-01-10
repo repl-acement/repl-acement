@@ -8,6 +8,7 @@
     [replacement.structure.core-fn-specs :as core-fn-specs]
     [replacement.structure.form-specs :as form-specs]
     [replacement.structure.wiring :as wiring]
+    [replacement.protocol.events :as events]
     [zprint.core :refer [zprint-file-str]]))
 
 
@@ -40,9 +41,12 @@
 
 (defn fix-width-format
   ([text]
-   (fix-width-format text 60))
+   (fix-width-format text 100))
   ([text width]
-   (zprint-file-str text ::fix-width-format {:width width})))
+   (fix-width-format text width [:community :rod]))
+  ([text width style]
+   (zprint-file-str text ::fix-width-format {:width width
+                                             :style style})))
 
 (defn- format-tx
   [cm text]

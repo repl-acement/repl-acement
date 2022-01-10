@@ -4,6 +4,8 @@
             [replacement.protocol.events :as events-specs]
             [replacement.server.async-prepl :as ap]))
 
+(set! *warn-on-reflection* true)
+
 (s/def ::ns-form
   (s/cat
     :ns-sym ::events-specs/ns-sym

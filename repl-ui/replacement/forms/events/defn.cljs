@@ -261,6 +261,9 @@
                        :defn.explain-data nil
                        :defn.unformed     unformed}
         fn-data       (split-defn-args (:defn-args conformed))]
+    (prn :defn.unformed (:defn.unformed fn-properties))
+    (prn :defn.conformed (:defn.conformed fn-properties))
+    (prn :defn.text (:defn.text fn-properties))
     (merge fn-properties fn-data)))
 
 (defn update-from-parts

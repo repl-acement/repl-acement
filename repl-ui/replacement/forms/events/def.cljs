@@ -9,7 +9,7 @@
     [cljs.spec.alpha :as s]
     [nextjournal.clojure-mode.extensions.formatting :as format]
     [re-frame.core :as re-frame :refer [reg-event-db reg-event-fx reg-fx]]
-    [replacement.protocol.cljs-fn-specs :as core-fn-specs]
+    [replacement.forms.events.common :as common]
     [replacement.protocol.data :as data-specs]
     [replacement.ui.helpers :refer [js->cljs]]
     [replacement.structure.wiring :as wiring]
@@ -90,6 +90,8 @@
                    (assoc v (data k))))
              def-data part->props-map))
 
+
+
 (defn update-cm-states
   [db def-data cms cm-key]
   (if-let [cm (get-in db [cm-key :cm])]
@@ -114,7 +116,7 @@
         conformed    (s/conform ::data-specs/def-form data)
         explain-data (and (= s/invalid? conformed) (s/explain-data ::data-specs/def-form data))
         unformed     (or (= s/invalid? conformed) (s/unform ::data-specs/def-form conformed))]
-    {:def.text         (-> unformed (pr-str) (zprint-file-str ::text->spec-data))
+    {:def.text         (-> unformed pr-str common/fix-width-format)
      :def.conformed    conformed
      :def.explain-data explain-data
      :def.unformed     unformed}))
@@ -123,7 +125,7 @@
   [conformed]
   (let [unformed (when-not (= s/invalid? conformed)
                    (s/unform ::data-specs/def-form conformed))]
-    {:def.text         (-> unformed (pr-str) (zprint-file-str ::conformed->spec-data))
+    {:def.text         (-> unformed pr-str common/fix-width-format)
      :def.conformed    conformed
      :def.explain-data nil
      :def.unformed     unformed}))

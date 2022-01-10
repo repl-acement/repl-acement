@@ -15,7 +15,7 @@
 
 (s/def ::def-sym
   (s/and symbol?
-         (partial = 'def)))
+         #(= 'def %)))
 
 (s/def ::defn-sym
   (s/and symbol?
@@ -24,14 +24,14 @@
 
 (s/def ::ns-sym
   (s/and symbol?
-         (partial = 'ns)))
+         #(= 'ns %)))
 
 (s/def ::minimal-string
   (s/and string? #(not (string/blank? %))))
 
-(s/def ::name symbol?)
+(s/def ::var-name symbol?)
 
-(s/def ::ns-name symbol?)
+(s/def ::ns-name ::var-name)
 
 (s/def ::type
   (s/or :ns ::ns-sym
@@ -54,11 +54,11 @@
     :def ::def-sym
     :var-name symbol?
     :docstring (s/? string?)
-    :init-expr (s/? any?)))
+    :init-expr (s/+ any?)))
 
 (s/def ::form
   (s/or :ns ::ns-form
-        :def ::defn-form
+        :def ::def-form
         :defn ::defn-form
         :expr list?))
 

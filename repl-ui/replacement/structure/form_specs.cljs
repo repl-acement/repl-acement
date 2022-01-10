@@ -19,7 +19,7 @@
     :def (s/and symbol? #(= 'def %))
     :var-name symbol?
     :docstring (s/? string?)
-    :init-expr (s/? any?)))
+    :init-expr (s/+ any?)))
 
 (s/def ::form
   (s/or :ns ::ns-form

@@ -39,11 +39,6 @@
     (:name db)))
 
 (reg-sub
-  ::current-form
-  (fn [db]
-    (:current-form db)))
-
-(reg-sub
   ::completions
   (fn [db]
     (get-in db [:local-repl-editor :completions])))
@@ -160,6 +155,11 @@
   ::current-form-data
   (fn [db]
     (:current-form-data db)))
+
+(reg-sub
+  ::current-form
+  (fn [db]
+    (:current-form db)))
 
 (reg-sub
   ::structured-view?

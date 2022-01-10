@@ -11,6 +11,8 @@
     [replacement.specs.messages :as message-specs]
     [replacement.forms.parser.parse :as form-parser]
     [replacement.forms.events.whole-ns :as whole-ns]
+    [replacement.protocol.data :as data-spec]
+    [replacement.protocol.events :as events-spec]
     [replacement.specs.user :as user-specs]
     [taoensso.sente :as sente]
     [zprint.core :refer [zprint-file-str]]))
@@ -45,36 +47,44 @@
   {:xforms aspec/sample-xform-declaration})
 
 (defn- ref-data->ref-id-data
-  [{:keys [ns ref-name ref-type] :as ref-data}]
-  (let [ref-id (str (random-uuid))]
-    {ref-id    ref-data
-     :id-index {ref-id {:ns   ns
-                        :type ref-type
-                        :name ref-name}}}))
+  [{:keys [ref-id ns ref-name ref-type] :as ref-data}]
+  {ref-id    ref-data
+   :id-index {ref-id {:ns   ns
+                      :type ref-type
+                      :name ref-name}}})
 
 (defn ns-forms
-  [forms]
+  [id-list forms]
   (let [the-ns-name  (first forms)
         ns-refs      (second forms)
         form-data    {:ns-forms    forms
                       :the-ns-name the-ns-name}
-        ref-id-data  (map (fn [[ref-ns ref-name ref-type ref-conformed]]
-                            (ref-data->ref-id-data {:ns            ref-ns
+        ref-id-data  (map (fn [id [ref-ns ref-name ref-type ref-conformed]]
+                            (ref-data->ref-id-data {:ref-id        id
+                                                    :ns            ref-ns
                                                     :ref-name      ref-name
                                                     :ref-type      ref-type
                                                     :ref-conformed ref-conformed}))
-                          ns-refs)
+                          id-list ns-refs)
         index-update (apply merge (map :id-index ref-id-data))]
     (apply merge form-data {:id-index index-update}
            (map #(dissoc % :id-index) ref-id-data))))
 
 (defn- default-ns-data
-  [ns-data-str]
+  [id-list ns-data-str]
   (->> ns-data-str
        (form-parser/read-whole-string)
        (form-parser/whole-ns->forms)
        (form-parser/add-reference-data)
-       (ns-forms)))
+       (ns-forms id-list)))
+
+(defn- new-ns-data
+  [ns-data-str]
+  (->> ns-data-str
+       (form-parser/read-whole-string)
+       (form-parser/whole-ns->forms)
+       (events-spec/add-reference-data)
+       (events-spec/index-forms)))
 
 (defn- default-form
   [ns-data]
@@ -83,24 +93,38 @@
                                                                  (when (= :defn (:ref-type v))
                                                                    [k v])))
                                                        last)
-        form-data (whole-ns/parse-form-data id data ref-type)]
-    {:current-form-data (merge {:id   id
-                                :type ref-type
-                                :name ref-name}
-                               form-data)}))
+        form-data         (whole-ns/parse-form-data id data ref-type)
+        current-form-data (merge {:id id :type ref-type :name ref-name} form-data)]
+    {:current-form-data current-form-data}))
+
+(defn- new-default-form
+  [[_ns-idx _ids ns-data]]
+  (let [[id form] (->> ns-data
+                       (filter (fn [[k v]]
+                                 (when (= :defn (::data-spec/type v))
+                                   [k v])))
+                       last)]
+    {:current-form-id id
+     :current-form    form}))
 
 ; --- Events ---
 (reg-event-db
   ::initialize-db
   (fn [_ _]
-    (let [default-ns           (default-ns-data form-parser/sample)
+    (let [ns-data              (new-ns-data form-parser/sample)
+          current-form         (new-default-form ns-data)
+          default-ns           (default-ns-data (second ns-data) form-parser/sample)
           default-current-form (default-form default-ns)]
+      ;(cljs.pprint/pprint [:ns-data ns-data])
+      (cljs.pprint/pprint [:default-ns default-ns])
       (merge {::name             "repl-acement"
               ::other-visibility true}
              os-data
              default-transforms
              default-ns
-             default-current-form))))
+             default-current-form
+             ns-data
+             current-form))))
 
 (reg-event-db
   ::network-status

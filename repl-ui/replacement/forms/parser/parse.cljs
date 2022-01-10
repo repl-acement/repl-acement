@@ -16,17 +16,18 @@
                 (conj forms form)))
             [] (repeatedly #(reader/read+string {:eof EOF :read-cond :allow} reader)))))
 
+(defn form->conformed
+  [form]
+  (let [pre-check (s/valid? ::form-specs/form form)
+        conformed (and pre-check (s/conform ::form-specs/form form))]
+    (cond-> {}
+            pre-check (assoc :conformed conformed
+                             :unformed (s/unform ::form-specs/form conformed))
+            (not pre-check) (assoc :explain (s/explain-data ::form-specs/form form)))))
+
 (defn whole-ns->forms
   [forms]
-  (map (fn [form]
-         (let [pre-conformed (s/conform ::form-specs/form form)
-               conformed     (if (s/invalid? pre-conformed) ::invalid pre-conformed)
-               explain       (if (s/invalid? pre-conformed) (s/explain-data ::form-specs/form form))
-               unformed      (when-not (= ::invalid conformed) (s/unform ::form-specs/form conformed))]
-           {:conformed conformed
-            :explain   explain
-            :unformed  unformed}))
-       forms))
+  (map form->conformed forms))
 
 (defn ns-reference-data
   [ns-name [type {:keys [ns-args] :as data}]]
@@ -59,7 +60,6 @@
   (let [ref-data (->> conformed-list
                       (map #(:conformed %))
                       (add-reference-data*))]
-    ;(cljs.pprint/pprint [:add-reference-data ref-data])
     ref-data))
 
 (def sample "(ns repl.ace.ment

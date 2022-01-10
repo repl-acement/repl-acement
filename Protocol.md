@@ -63,18 +63,18 @@ Web sockets data packet from the client
 - example conforming message
 
 ```clojure
-#:replacement.protocol.data{:id #uuid"cfe7bd64-f23b-40b3-bc6a-fdedd26293d8",
-                            :type defn,
-                            :name xy,
-                            :ns-name user,
-                            :form-data {:text "(defn xy [x y] (+ x y))",
+#:replacement.protocol.data{:id        #uuid"cfe7bd64-f23b-40b3-bc6a-fdedd26293d8",
+                            :type      defn,
+                            :var-name  xy,
+                            :ns-name   user,
+                            :form-data {:text      "(defn xy [x y] (+ x y))",
                                         :conformed {:defn-type defn,
                                                     :defn-args {:fn-name xy,
                                                                 :fn-tail [:arity-1
                                                                           {:params {:args [[:local-symbol x]
                                                                                            [:local-symbol y]]},
-                                                                           :body [:body [(+ x y)]]}]}},
-                                        :unformed (defn xy [x y] (+ x y))}}
+                                                                           :body   [:body [(+ x y)]]}]}},
+                                        :unformed  (defn xy [x y] (+ x y))}}
 ```
 
 ### Save - Server

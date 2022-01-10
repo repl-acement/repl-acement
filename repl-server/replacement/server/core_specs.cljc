@@ -2,6 +2,8 @@
   (:require [clojure.spec.alpha :as s]
             [clojure.core.specs.alpha :as specs]))
 
+(set! *warn-on-reflection* true)
+
 (s/def ::ns-form
   (s/cat
     :ns-sym (s/and symbol? #(= 'ns %))

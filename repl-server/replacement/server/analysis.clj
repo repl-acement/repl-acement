@@ -3,6 +3,8 @@
     [replacement.specs.messages :as messages]
     [clj-kondo.core :as kondo]))
 
+(set! *warn-on-reflection* true)
+
 (defn- clj-kondo* [form]
   (-> form
       (with-in-str (kondo/run! {:lint ["-"] :config {:output {:analysis true}}}))

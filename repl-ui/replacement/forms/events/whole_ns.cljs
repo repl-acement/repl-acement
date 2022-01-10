@@ -23,8 +23,19 @@
       :defn (re-frame/dispatch [::defn-events/set-form id])
       :ns (re-frame/dispatch [::ns-events/set-view id]))))
 
+(defn- new-parse-form-data
+  [id {:keys [ref-type ref-name ref-conformed] :as form-data} type]
+  (let [form-data (condp = type
+                    :def (def-events/conformed->spec-data ref-conformed)
+                    :defn (defn-events/conformed->spec-data ref-conformed)
+                    :ns (ns-events/conformed->spec-data ref-conformed))]
+    {:id   id
+     :type ref-type
+     :name ref-name
+     :form form-data}))
+
 (defn- parse-form-data
-  [id {:keys [ref-type ref-name ref-conformed]} type]
+  [id {:keys [ref-type ref-name ref-conformed] :as form-data} type]
   (let [form-data (condp = type
                     :def (def-events/conformed->spec-data ref-conformed)
                     :defn (defn-events/conformed->spec-data ref-conformed)
