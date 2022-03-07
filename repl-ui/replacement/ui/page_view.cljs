@@ -473,7 +473,9 @@
 
 (defn whole-ns-view []
   (let [the-ns-name @(re-frame/subscribe [::subs/the-ns-name])
-        current-form @(re-frame/subscribe [::subs/current-form-data])]
+        current-form @(re-frame/subscribe [::subs/current-form-data])
+        view-form @(re-frame/subscribe [::subs/view-form-data])]
+    (cljs.pprint/pprint [:view-form-data view-form])
     [v-box :gap "20px" :justify :center :padding "15px"
      :children
      [[transform-options]

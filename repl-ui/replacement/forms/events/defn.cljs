@@ -7,8 +7,9 @@
   retained in their own list. An extra metadata map can be provided for multi-arity forms.
 
   This namespace is concerned with breaking the defn forms down using `spec/conform` and
-  putting them back together with `unform`. Editing by a human or a function can happen
-  in between.
+  putting them back together with `unform`. Editing by a human or a function may happen
+  in between providing that it remains `unform`-able. This is relaxed for humans but not
+  for functions.
 
   ;; It is organized to match the life-cycle:
   ✓ event to set the whole view of a specific form-id
@@ -254,11 +255,12 @@
 
 (defn- conformed->spec-data
   [conformed]
-  (let [unformed      (when-not (= s/invalid? conformed)
+  (let [unformed      (when-not (s/invalid? conformed)
                         (s/unform ::data-specs/defn-form conformed))
         fn-properties {:defn.text         (-> unformed pr-str common/fix-width-format)
                        :defn.conformed    conformed
-                       :defn.explain-data nil
+                       :defn.explain-data (when (s/invalid? conformed)
+                                            (s/explain-data ::data-specs/defn-form conformed))
                        :defn.unformed     unformed}
         fn-data       (split-defn-args (:defn-args conformed))]
     (prn :defn.unformed (:defn.unformed fn-properties))
@@ -332,10 +334,13 @@
       db')))
 
 ;; TODO - persist editing changes
-; x event to persist changes at user behest
-; x event to persist changes when the form under inspection is changed
+; [x] event to persist changes at user behest
+; [x] event to persist changes when the form under inspection is changed
 
-;; TODO - set some warnings if not conformed
+;; TODO - set warnings if not conformed
+; [x] event to set that warnings exist
+; [x] use a 'humane' lib to expose the spec warnings
+; [x] persist warnings with changes
 
 
 

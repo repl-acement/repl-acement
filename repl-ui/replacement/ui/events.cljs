@@ -80,11 +80,14 @@
 
 (defn- new-ns-data
   [ns-data-str]
-  (->> ns-data-str
-       (form-parser/read-whole-string)
-       (form-parser/whole-ns->forms)
-       (events-spec/add-reference-data)
-       (events-spec/index-forms)))
+  (let [[index-map index ns-forms] (->> ns-data-str
+                                        (form-parser/read-whole-string)
+                                        (form-parser/whole-ns->forms)
+                                        (events-spec/add-reference-data)
+                                        (events-spec/index-forms))]
+    {:current-ns {:forms     ns-forms
+                  :index-map index-map
+                  :index     index}}))
 
 (defn- default-form
   [ns-data]
@@ -95,10 +98,11 @@
                                                        last)
         form-data         (whole-ns/parse-form-data id data ref-type)
         current-form-data (merge {:id id :type ref-type :name ref-name} form-data)]
+    ;; TODO update to set `:view-form-data`
     {:current-form-data current-form-data}))
 
 (defn- new-default-form
-  [[_ns-idx _ids ns-data]]
+  [ns-data]
   (let [[id form] (->> ns-data
                        (filter (fn [[k v]]
                                  (when (= :defn (::data-spec/type v))
@@ -112,16 +116,17 @@
   ::initialize-db
   (fn [_ _]
     (let [ns-data              (new-ns-data form-parser/sample)
-          current-form         (new-default-form ns-data)
-          default-ns           (default-ns-data (second ns-data) form-parser/sample)
+          {:keys [index ns-forms]} (:current-ns ns-data)
+          current-form         (new-default-form ns-forms)
+          default-ns           (default-ns-data index form-parser/sample)
           default-current-form (default-form default-ns)]
-      ;(cljs.pprint/pprint [:ns-data ns-data])
-      (cljs.pprint/pprint [:default-ns default-ns])
+      (cljs.pprint/pprint ns-data)
       (merge {::name             "repl-acement"
               ::other-visibility true}
              os-data
              default-transforms
              default-ns
+             ;; TODO update to set `:view-form-data`
              default-current-form
              ns-data
              current-form))))

@@ -142,11 +142,6 @@
     (:the-defn-form db)))
 
 (reg-sub
-  ::the-def-form
-  (fn [db]
-    (:the-def-form db)))
-
-(reg-sub
   ::current-form-type
   (fn [db]
     (:current-form-type db)))
@@ -155,6 +150,13 @@
   ::current-form-data
   (fn [db]
     (:current-form-data db)))
+
+;; TODO - replace the above with this
+(reg-sub
+  ::view-form-data
+  (fn [db]
+    (:view-form-data db)))
+
 
 (reg-sub
   ::current-form
