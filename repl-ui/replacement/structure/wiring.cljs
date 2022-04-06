@@ -11,7 +11,8 @@
   IDs but code mirrors are in a flat name space.
 
   Hmmm - now I write this down, maybe we should add IDs for components and keep the
-  component and CMs indexed together? Then no need for any conventions!!"
+  component and CMs indexed together? Then no need for any conventions!!
+  TODO - this ^^^^^^^^^^^^^^^^^^^^^^^!!"
   (:require [clojure.string :as string]))
 
 (defn comp-name->cm-name

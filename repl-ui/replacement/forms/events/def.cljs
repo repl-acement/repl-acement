@@ -128,7 +128,7 @@
      :def.explain-data explain-data
      :def.unformed     unformed}))
 
-(defn- conformed->spec-data
+(defn conformed->spec-data
   [conformed]
   (let [unformed (when-not (s/invalid? conformed)
                    (s/unform ::data-specs/def-form conformed))]
@@ -138,7 +138,7 @@
                          (s/explain-data ::data-specs/def-form conformed))
      :def.unformed     unformed}))
 
-(defn- conformed-form->spec-data
+(defn conformed-form->spec-data
   [{:keys [conformed]}]
   (println :conformed conformed)
   (let [unformed (when-not (s/invalid? conformed)

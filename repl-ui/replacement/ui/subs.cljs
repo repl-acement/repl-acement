@@ -157,6 +157,15 @@
   (fn [db]
     (:view-form-data db)))
 
+(reg-sub
+  ::view-ns-id
+  (fn [db]
+    (:view-ns-id db)))
+
+(reg-sub
+::current-ns
+(fn [db]
+    (:current-ns db)))
 
 (reg-sub
   ::current-form
@@ -177,6 +186,7 @@
   ::id-index
   (fn [db [_ ns-name]]
     ;; TODO fix this to reduce scanning the whole index
+    ;; Add this data to the current-ns view
     (filter #(= (:ns (val %)) ns-name) (:id-index db))))
 
 (reg-sub

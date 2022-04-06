@@ -34,7 +34,7 @@
                     :ns (ns-events/conformed->spec-data ref-conformed))]
     (merge input {:form-data form-data})))
 
-(defn- parse-form-data
+(defn parse-form-data
   [id {:keys [ref-type ref-name ref-conformed]} type]
   (let [form-data (condp = type
                     :def (def-events/conformed->spec-data ref-conformed)
@@ -48,6 +48,10 @@
 (reg-event-fx
   ::current-form-data
   (fn [{:keys [db]} [_ {:keys [id type]}]]
+    (println  :type type :form (db id))
+    (println :form-data (parse-form-data id (db id) type))
+    (println :id id :current-ns (get-in db [:current-ns :index]))
+    (println :view-form-data (get-in db [:current-ns :index-map id]))
     (let [form           (db id)
           form-data      (parse-form-data id form type)
           view-form-data (form-data->view-data (get-in db [:current-ns id]))]

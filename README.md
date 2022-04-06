@@ -15,7 +15,8 @@ A limited set of commands are supported on the socket:
 ## Usage
 
 ```bash
-$ clojure -M:clj:server
+shadow-cljs watch repl-ui # UI
+clojure -M:clj:server     # Server
 ```
 
 The web server will be exposed on port `56665` by default

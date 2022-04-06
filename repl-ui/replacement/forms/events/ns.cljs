@@ -140,7 +140,7 @@
      :ns.explain-data explain-data
      :ns.unformed     unformed}))
 
-(defn- conformed->spec-data
+(defn conformed->spec-data
   [conformed]
   (let [unformed (when-not (= s/invalid? conformed)
                    (s/unform ::data-specs/ns-form conformed))]

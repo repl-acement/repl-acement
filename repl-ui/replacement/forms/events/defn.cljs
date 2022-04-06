@@ -253,7 +253,7 @@
         fn-data       (split-defn-args (:defn-args conformed))]
     (merge fn-properties fn-data)))
 
-(defn- conformed->spec-data
+(defn conformed->spec-data
   [conformed]
   (let [unformed      (when-not (s/invalid? conformed)
                         (s/unform ::data-specs/defn-form conformed))
@@ -273,7 +273,7 @@
   not conforming, the update is nil and the spec explain-data is provided"
   [conformed-data property-name new-value arity-index]
   (let [{:keys [spec path arity?]} (get parts property-name)
-        input          (forms-parse/read-whole-string new-value)
+        input          (forms-parse/text->edn-forms new-value)
         conformed-part (s/conform spec input)
         update         (when-not (s/invalid? conformed-part)
                          (if arity?
