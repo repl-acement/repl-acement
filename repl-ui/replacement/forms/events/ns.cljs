@@ -141,7 +141,7 @@
      :ns.unformed     unformed}))
 
 (defn conformed->spec-data
-  [conformed]
+  [{:keys [conformed]}]
   (let [unformed (when-not (= s/invalid? conformed)
                    (s/unform ::data-specs/ns-form conformed))]
     {:ns.text         (pr-str unformed)
