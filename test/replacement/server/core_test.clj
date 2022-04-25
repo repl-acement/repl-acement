@@ -285,6 +285,7 @@
 			(let [results    (sync-results prepl-opts "(defn identity [x] x)" :first-only? false)
 						error-data (first results)
 						response   (last results)]
+				;; TODO - this fails on the second call in the PREPL but not other REPLs. Why?
 				(is (= 2 (count results)))
 				(is (= "WARNING: identity already refers to: #'clojure.core/identity in namespace: user, being replaced by: #'user/identity"
 							 (str/trim (:val error-data))))

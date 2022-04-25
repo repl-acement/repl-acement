@@ -6,7 +6,7 @@ Goal is to accept changes to the data we call code, persist the changes and offe
 
 The server part exposes a shared PREPL, accessible via a web socket.
 
-A limited set of commands are supported on the socket:
+A limited set of commands will be supported on the socket:
 
 - [ ] save
 - [ ] eval
@@ -18,19 +18,3 @@ A limited set of commands are supported on the socket:
 shadow-cljs watch repl-ui # UI
 clojure -M:clj:server     # Server
 ```
-
-The web server will be exposed on port `56665` by default
-
-Optionally you can provide a port number:
-
-```bash
-$ clojure -M:clj:server 8888
-```
-
-Optionally you can provide the port number via an environment variable `PORT`:
-
-```bash
-$ PORT=8998 clojure -M:clj:server 
-```
-
-In all cases, a PREPL socket server will be started locally.
