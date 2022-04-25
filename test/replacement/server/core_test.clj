@@ -282,9 +282,10 @@
 				(is (and (map? val)
 								 (true? exception))))
 
-			(let [results (sync-results prepl-opts "(defn identity [x] x)" :first-only? false)
+			(let [results    (sync-results prepl-opts "(defn identity [x] x)" :first-only? false)
 						error-data (first results)
-						response (last results)]
+						response   (last results)]
+				(is (= 2 (count results)))
 				(is (= "WARNING: identity already refers to: #'clojure.core/identity in namespace: user, being replaced by: #'user/identity"
 							 (str/trim (:val error-data))))
 				(is (= :err (:tag error-data)))

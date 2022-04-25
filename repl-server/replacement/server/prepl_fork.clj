@@ -34,11 +34,11 @@
 	Alpha, subject to change."
 	{:added "1.10"}
 	[in-reader out-fn & {:keys [stdin]}]
-	(let [EOF (Object.)
+	(let [EOF   (Object.)
 				tapfn #(out-fn {:tag :tap :val %1})]
 		(m/with-bindings
 			(in-ns 'user)
-			(binding [*in* (or stdin in-reader)
+			(binding [*in*  (or stdin in-reader)
 								*out* (PrintWriter-on #(out-fn {:tag :out :val %1}) nil)
 								*err* (PrintWriter-on #(out-fn {:tag :err :val %1}) nil)]
 				(try
@@ -49,31 +49,31 @@
 											(try
 												(when-not (identical? form EOF)
 													(let [start (System/nanoTime)
-																ret (eval form)
-																ms (quot (- (System/nanoTime) start) 1000000)]
+																ret   (eval form)
+																ms    (quot (- (System/nanoTime) start) 1000000)]
 														(when-not (= :repl/quit ret)
-															(binding [*out* *err*] (flush))              ;; <-- The fix
+															(binding [*out* *err*] (flush))              ;; <-- The hack
 															(set! *3 *2)
 															(set! *2 *1)
 															(set! *1 ret)
-															(out-fn {:tag :ret
-																			 :val (if (instance? Throwable ret)
-																							(Throwable->map ret)
-																							ret)
-																			 :ns (str (.name *ns*))
-																			 :ms ms
+															(out-fn {:tag  :ret
+																			 :val  (if (instance? Throwable ret)
+																							 (Throwable->map ret)
+																							 ret)
+																			 :ns   (str (.name *ns*))
+																			 :ms   ms
 																			 :form s})
 															true)))
 												(catch Throwable ex
 													(set! *e ex)
-													(out-fn {:tag :ret :val (ex->data ex (or (-> ex ex-data :clojure.error/phase) :execution))
-																	 :ns (str (.name *ns*)) :form s
+													(out-fn {:tag       :ret :val (ex->data ex (or (-> ex ex-data :clojure.error/phase) :execution))
+																	 :ns        (str (.name *ns*)) :form s
 																	 :exception true})
 													true)))
 										(catch Throwable ex
 											(set! *e ex)
-											(out-fn {:tag :ret :val (ex->data ex :read-source)
-															 :ns (str (.name *ns*))
+											(out-fn {:tag       :ret :val (ex->data ex :read-source)
+															 :ns        (str (.name *ns*))
 															 :exception true})
 											true))
 							(recur)))
@@ -84,9 +84,7 @@
 (defn- resolve-fn [valf]
 	(if (symbol? valf)
 		(or (resolve valf)
-				(when-let [nsname (namespace valf)]
-					(require (symbol nsname))
-					(resolve valf))
+				(requiring-resolve valf)
 				(throw (Exception. (str "can't resolve: " valf))))
 		valf))
 
@@ -99,7 +97,7 @@
 	{:added "1.10"}
 	[& {:keys [valf] :or {valf pr-str}}]
 	(let [valf (resolve-fn valf)
-				out *out*
+				out  *out*
 				lock (Object.)]
 		(prepl *in*
 					 (fn [m]
