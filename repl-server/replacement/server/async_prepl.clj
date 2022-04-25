@@ -169,7 +169,7 @@
 		 :server new-server
 		 :client (prepl-rw (:port new-server))}))
 
-(def ^:private repl-requires
+(def ^:private repl-setup
 	["(require '[clojure.repl :refer [source apropos dir pst doc find-doc]])"
 	 "(require '[clojure.java.javadoc :refer [javadoc]])"
 	 "(require '[clojure.pprint :refer [pp pprint]])"
@@ -177,12 +177,12 @@
 	 "(set! *warn-on-reflection* true)"])
 
 (defn init-prepl
-	[{:keys [out-ch requires]
-		:or   {requires repl-requires}
+	[{:keys [out-ch set-up-commands]
+		:or   {set-up-commands repl-setup}
 		:as   opts}]
 	(let [channel-opts {:out-ch out-ch}
-				prepl-opts   (assoc (shared-prepl channel-opts) :init-count (count requires))
-				digested     (map #(assoc {} :form % :message-id (digest %)) requires)]
+				prepl-opts   (assoc (shared-prepl channel-opts) :init-count (count set-up-commands))
+				digested     (map #(assoc {} :form % :message-id (digest %)) set-up-commands)]
 		(doall (map (fn [form] @(shared-eval prepl-opts form)) digested))
 		(merge opts prepl-opts)))
 
