@@ -172,6 +172,13 @@
       (let [{:keys [val]} (sync-results prepl-opts "(map (fn [x] (inc x)) (range 3))")]
         (is (= '(1 2 3) (read-string val)))))))
 
+(deftest ^:reflection-tests reflection-tests
+  (testing "Reflection warnings"
+    (let [client (->prepl-client)
+          results (sync-results client "(.toString (identity \"foo\"))" :first-only? false)]
+      (is (= 2 (count results))))))
+
+
 (deftest ^:reader-char-tests reader-char-tests
   (testing "Reader special characters"
     (let [prepl-opts (->prepl-client)
@@ -261,7 +268,7 @@
         (is (map? result))
         (is (= 3 (:g result)))))))
 
-(deftest ^:graceful-fail-tests graceful-fail-tests
+#_(deftest ^:graceful-fail-tests graceful-fail-tests
   (testing "Test graceful failures for syntax and spec errors"
     (let [prepl-opts (->prepl-client)
           {:keys [tag val exception] :as x} (sync-results prepl-opts "(prn \"000")]

@@ -34,15 +34,3 @@ $ PORT=8998 clojure -M:clj:server
 ```
 
 In all cases, a PREPL socket server will be started locally.
- 
-## Planned features
-
-### Local code emission:
-
-For all or some subset of the code
-
-- [ ] export to file system
-- [ ] export to produce a JAR
-- [ ] export to produce a GRAALVM image
-
-
