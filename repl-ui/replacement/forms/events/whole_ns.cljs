@@ -20,22 +20,22 @@
 	::set-form-view
 	(fn [{:keys [type id]}]
 		(condp = type
-			:def (re-frame/dispatch [::def-events/set-view id])
+			:def (re-frame/dispatch [::def-events/set-form id])
 			:defn (re-frame/dispatch [::defn-events/set-form id])
 			:ns (re-frame/dispatch [::ns-events/set-view id]))))
 
 (defn- form-data->view-data
 	[{::protocol-data/keys [type] :as input}]
-	(cljs.pprint/pprint [:type type :input input])
+	;(tap> [::form-data->view-data :type type :input input])
 	(let [form-data (condp = type
 										:def (def-events/conformed-form->spec-data input)
-										;; TODO
-										:defn (defn-events/conformed->spec-data input)
-										:ns (ns-events/conformed->spec-data input))]
+										:defn (defn-events/conformed-form->spec-data input)
+										:ns (ns-events/conformed-form->spec-data input))]
 		(merge input {:form-data form-data})))
 
 (defn parse-form-data
-	[id {:keys [ref-type ref-name ref-conformed]} type]
+	[id {:keys [ref-type ref-name ref-conformed] :as input} type]
+	;(tap> [::parse-form-data :type type :input input])
 	(let [form-data (condp = type
 										:def (def-events/conformed->spec-data ref-conformed)
 										:defn (defn-events/conformed->spec-data ref-conformed)
@@ -48,13 +48,6 @@
 (reg-event-fx
 	::current-form-data
 	(fn [{:keys [db]} [_ {:keys [id type]}]]
-		(println :type type :form (db id))
-		(println :form-data (parse-form-data id (db id) type))
-		(println :id id)
-		(cljs.pprint/pprint [:index (get-in db [:current-ns :index])])
-		(cljs.pprint/pprint [:index-map (get-in db [:current-ns :index-map])])
-		(cljs.pprint/pprint [:current-ns (get-in db [:current-ns])])
-		(println [:view-form-data (get-in db [:current-ns :forms id])])
 		(let [form           (db id)
 					form-data      (parse-form-data id form type)
 					view-form-data (form-data->view-data (get-in db [:current-ns :forms id]))]

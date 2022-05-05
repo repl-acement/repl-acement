@@ -196,7 +196,6 @@
 (def arity-parts [:defn.params :defn.pre-post :defn.body])
 (def multi-arity-attrs [:extra-meta])
 
-
 (defn- fixed-items-update-cms!
   "Update the parts of this form that are fixed when it is conformed, including any that are nillable."
   [{:keys [defn-args] :as db} triggering-cm-key]
@@ -263,10 +262,16 @@
                                             (s/explain-data ::data-specs/defn-form conformed))
                        :defn.unformed     unformed}
         fn-data       (split-defn-args (:defn-args conformed))]
-    (prn :defn.unformed (:defn.unformed fn-properties))
-    (prn :defn.conformed (:defn.conformed fn-properties))
-    (prn :defn.text (:defn.text fn-properties))
     (merge fn-properties fn-data)))
+
+(defn conformed-form->spec-data
+  [{:keys [conformed]}]
+  (let [unformed (when-not (s/invalid? conformed)
+                   (s/unform ::data-specs/form conformed))]
+    {:text         (-> unformed pr-str common/fix-width-format)
+     :conformed    conformed
+     :explain-data (when (s/invalid? conformed) (s/explain-data ::data-specs/form conformed))
+     :unformed     unformed}))
 
 (defn update-from-parts
   "Updates the value of `property-name` to `new-value` in the `conformed-data` map. If `new-value` is
@@ -316,9 +321,10 @@
   (fn [db [_ var-id]]
     (when-let [cm (get-in db [:defn.form.cm :cm])]
       (let [{:keys [ref-conformed ref-name]} (db var-id)
-            visibility {:visible-form-id var-id :the-defn-form ref-name}
+            visibility {:visible-form-id var-id}
             db'        (merge db visibility (conformed->spec-data ref-conformed))]
-        (->> db' :defn.text (common/format-tx cm) (common/update-cm! cm))
+        (some->> db' :defn.text (common/format-tx cm) (common/update-cm! cm))
+        (tap> [::set-form :var-data ref-name])
         (when (:defn.conformed db') (parts-update! db' :defn.form.cm))
         db'))))
 

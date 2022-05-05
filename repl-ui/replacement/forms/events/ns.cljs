@@ -29,7 +29,7 @@
 (reg-event-fx
   ::part-edit
   (fn [{:keys [db]} [_ part-cm-name tx]]
-    (let [cm       (get-in db [part-cm-name :cm])
+    (let [cm (get-in db [part-cm-name :cm])
           changed? (js->cljs (.-docChanged tx))]
       {:db              db
        ::fn-part-update [cm tx changed?]})))
@@ -44,7 +44,7 @@
 (reg-event-fx
   ::whole-form-tx
   (fn [{:keys [db]} [_ cm-name tx]]
-    (let [cm       (get-in db [cm-name :cm])
+    (let [cm (get-in db [cm-name :cm])
           changed? (js->cljs (.-docChanged tx))]
       {:db          db
        ::whole-edit [cm tx changed?]})))
@@ -64,7 +64,7 @@
 
 (defn shortened-ns-name
   [s]
-  (let [parts     (string/split s #"\.")
+  (let [parts (string/split s #"\.")
         drop-junk (if (seq (some #{"alpha" "core"} (vector (last parts))))
                     (butlast parts)
                     parts)]
@@ -83,17 +83,17 @@
 
 (defn- ns-basic-data->properties
   [{:keys [ns-name docstring]}]
-  {:name       ns-name
-   :docstring  docstring})
+  {:name      ns-name
+   :docstring docstring})
 
 (defn- split-ns
   [conformed-ns-data]
   (let [ns-data (ns-basic-data->properties (:ns-args conformed-ns-data))
-        libs    (atom [])
+        libs (atom [])
         _walked (walk/postwalk
                   (fn [node]
                     (when (and (vector? node) (= :libspec (first node)))
-                      (let [lib      (last node)
+                      (let [lib (last node)
                             unformed (unformed-lib lib)]
                         (swap! libs conj {:conformed (last node)
                                           :unformed  unformed
@@ -112,8 +112,8 @@
   [db defn-data cms cm-key]
   (if-let [cm (get-in db [cm-key :cm])]
     (let [defn-property-name (wiring/cm-name->comp-name cm-key)
-          new-text           (pr-str (get defn-data defn-property-name))
-          tx                 (common/replacement-tx cm new-text)]
+          new-text (pr-str (get defn-data defn-property-name))
+          tx (common/replacement-tx cm new-text)]
       (conj cms {:cm cm :tx tx}))
     cms))
 
@@ -123,25 +123,34 @@
 (reg-event-fx
   ::items-update-cms
   (fn [{:keys [db]} [_]]
-    (let [cm-keys          (map wiring/comp-name->cm-name parts)
-          defn-data        (:ns.parts db)
+    (let [cm-keys (map wiring/comp-name->cm-name parts)
+          defn-data (:ns.parts db)
           cms-with-changes (reduce (partial update-cm-states db defn-data) [] cm-keys)]
       {:db          db
        ::update-cms cms-with-changes})))
 
 (defn- text->spec-data
   [text]
-  (let [data         (rdr/read-string text)
-        conformed    (s/conform ::data-specs/ns-form data)
+  (let [data (rdr/read-string text)
+        conformed (s/conform ::data-specs/ns-form data)
         explain-data (and (= s/invalid? conformed) (s/explain-data ::data-specs/ns-form data))
-        unformed     (or (= s/invalid? conformed) (s/unform ::data-specs/ns-form conformed))]
+        unformed (or (= s/invalid? conformed) (s/unform ::data-specs/ns-form conformed))]
     {:ns.text         text
      :ns.conformed    conformed
      :ns.explain-data explain-data
      :ns.unformed     unformed}))
 
-(defn conformed->spec-data
+(defn conformed-form->spec-data
   [{:keys [conformed]}]
+  (let [unformed (when-not (s/invalid? conformed)
+                   (s/unform ::data-specs/form conformed))]
+    {:text         (-> unformed pr-str common/fix-width-format)
+     :conformed    conformed
+     :explain-data (when (s/invalid? conformed) (s/explain-data ::data-specs/form conformed))
+     :unformed     unformed}))
+
+(defn conformed->spec-data
+  [conformed]
   (let [unformed (when-not (= s/invalid? conformed)
                    (s/unform ::data-specs/ns-form conformed))]
     {:ns.text         (pr-str unformed)
@@ -177,15 +186,15 @@
   and create the new form to reflect any updates"
   [db]
   (let [fixed-parts (common-parts-text db)
-        form-text   (apply str fixed-parts)]
+        form-text (apply str fixed-parts)]
     (str "(ns " form-text ")")))
 
 (reg-event-fx
   ::set-part-in-whole
   (fn [{:keys [db]} [_]]
-    (let [cm         (get-in db [:defn.form.cm :cm])
+    (let [cm (get-in db [:defn.form.cm :cm])
           whole-text (whole-form-updated db)
-          updates    (text->spec-data whole-text)]
+          updates (text->spec-data whole-text)]
       {:db            (merge db updates)
        ::whole-update [cm whole-text]})))
 
@@ -216,10 +225,10 @@
   ::set-view
   (fn [{:keys [db]} [_ var-id]]
     (when-let [cm (get-in db [:ns.form.cm :cm])]
-      (let [var-data       (db var-id)
+      (let [var-data (db var-id)
             conformed-data (:ref-conformed var-data)
-            var-name       (:ref-name var-data)
-            updates        (conformed->spec-data conformed-data)]
+            var-name (:ref-name var-data)
+            updates (conformed->spec-data conformed-data)]
         {:db           (merge db {:the-ns-form     var-name
                                   :visible-form-id var-id} updates)
          ::view-update [cm (:ns.text updates)]}))))

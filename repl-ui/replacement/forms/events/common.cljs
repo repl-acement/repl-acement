@@ -20,7 +20,7 @@
   [^js cm]
   (->> (-> cm .-state .-doc) (.toJSON) ->clj (apply str)))
 
-(defn- update-cm!
+(defn update-cm!
   ([cm tx]
    (update-cm! cm tx nil))
   ([cm tx event-args]
@@ -48,7 +48,7 @@
    (zprint-file-str text ::fix-width-format {:width width
                                              :style style})))
 
-(defn- format-tx
+(defn format-tx
   [cm text]
   (->> text fix-width-format (replacement-tx cm)))
 

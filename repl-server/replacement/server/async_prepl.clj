@@ -161,6 +161,8 @@
 			:server server
 			:client (prepl-rw (:port server))})))
 
+;; This works for the UI but sucks...the background process grinds on for a long time before being killed.
+;; Need to use the Executor Service and then stop the thread on cancel
 (defn cancel
 	[{:keys [server opts]}]
 	(let [new-server (shared-prepl-server opts)]

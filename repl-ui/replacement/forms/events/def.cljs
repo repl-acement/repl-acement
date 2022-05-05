@@ -140,7 +140,6 @@
 
 (defn conformed-form->spec-data
   [{:keys [conformed]}]
-  (println :conformed conformed)
   (let [unformed (when-not (s/invalid? conformed)
                    (s/unform ::data-specs/form conformed))]
     {:text         (-> unformed pr-str common/fix-width-format)
@@ -216,6 +215,25 @@
       (update-cm cm tx)
       (re-frame/dispatch [::fixed-items-update-cms]))))
 
+(defn parts-update!
+  [{:keys [arity-data] :as db} source-cm-key]
+  ;(fixed-items-update-cms! db source-cm-key)
+  ;(arity-update-cms! db source-cm-key (first arity-data))
+  ;(attrs-update-cms! db source-cm-key)
+  )
+
+#_(reg-event-db
+  ::set-form
+  (fn [db [_ var-id]]
+    (when-let [cm (get-in db [:defn.form.cm :cm])]
+      (let [{:keys [ref-conformed ref-name]} (db var-id)
+            visibility {:visible-form-id var-id :the-defn-form ref-name}
+            db'        (merge db visibility (conformed->spec-data ref-conformed))]
+        (some->> db' :defn.text (common/format-tx cm) (common/update-cm! cm))
+        (tap> [::set-form :var-data ref-name])
+        (when (:defn.conformed db') (parts-update! db' :defn.form.cm))
+        db'))))
+
 (reg-event-db
   ::set-form
   (fn [db [_ var-id]]
@@ -223,30 +241,20 @@
       (let [var-data   (get-var-data (:current-ns db) var-id)
             visibility {:visible-form-id var-id}
             db'        (merge db var-data visibility)]
-        (->> db' :def.text (common/format-tx cm) (common/update-cm! cm))
-        #_(when (:def.conformed db') (parts-update! db' :def.form.cm))
+        (some->> db' :def.text (common/format-tx cm) (common/update-cm! cm))
+        (tap> [::set-form :var-data var-data])
+        (when (:def.conformed db') (parts-update! db' :def.form.cm))
         db'))))
 
-(reg-event-fx
-  ::set-view
-  (fn [{:keys [db]} [_ var-id]]
-    (when-let [cm (get-in db [:def.form.cm :cm])]
-      (let [var-data   (get-var-data (:current-ns db) var-id)
-            visibility {:visible-form-id var-id}
-            new-view   (merge var-data visibility)]
-        (cljs.pprint/pprint [::set-view (merge var-data visibility)])
-
-        ;; TODO Next ...update the style to set-form as above
-        ;; convert the subscriptions / subscribers to use the new shape of the data
-
-        (let [var-data       (db var-id)
-              conformed-data (:ref-conformed var-data)
-              updates        (conformed->spec-data conformed-data)]
-          {:db           (merge db {:visible-form-id var-id} conformed-data updates new-view)
-           ::view-update [cm (:def.text updates)]})))))
-
-
-;; transform this to use protocol data
+(reg-event-db
+  ::form-tx
+  (fn [db [_ cm-name tx]]
+    ;; First update the transacting code-mirror
+    (-> (get-in db [cm-name :cm]) (common/update-cm! tx))
+    (let [text (common/extract-tx-text tx)
+          db'  (merge db (text->spec-data text))]
+      (when (:def.conformed db') (parts-update! db' cm-name))
+      db')))
 
 
 

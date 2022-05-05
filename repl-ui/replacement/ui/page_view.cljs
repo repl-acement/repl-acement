@@ -172,7 +172,7 @@
 														 (re-frame/dispatch-sync [cm-event-name !view cm-name])))]
 		[:div {:ref !mount}]))
 
-(defn var-form-editor
+(defn def-form-editor
 	[form-data]
 	(form-editor {:data          form-data
 								:text-key      :def.text
@@ -282,8 +282,8 @@
 																		arity-data)
 				common-parts   (or @editable-defn-parts
 													 (reset! editable-defn-parts (defn-component-parts defn-events/fixed-parts)))]
-		(prn :arity-elements arity-elements :form form)
-		;; NO!!!!
+		(tap> [::defn-parts :arity-elements arity-elements :form form])
+		;; NO!!!! - FFS Write down why next time cos I'm lost dude. And I am you :(
 		(re-frame/dispatch [::defn-events/set-form arity-index])
 		[v-box :gap "10px" :children
 		 [[v-box :gap "10px" :children common-parts]
@@ -391,7 +391,7 @@
 				 [[title :level :level2 :label (:name form-data)]
 					(condp = (:type form-data)
 						:def (or (:var-form @editable-forms)
-										 (:var-form (swap! editable-forms assoc :var-form [var-form-editor form-data])))
+										 (:var-form (swap! editable-forms assoc :var-form [def-form-editor form-data])))
 						:defn (or (:defn-form @editable-forms)
 											(:defn-form (swap! editable-forms assoc :defn-form [defn-form-editor form-data])))
 						:ns (or (:ns-form @editable-forms)

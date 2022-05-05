@@ -192,7 +192,6 @@
 					current-form         (new-default-form forms)
 					default-ns           (default-ns-data index form-parser/sample)
 					default-current-form (default-form default-ns)]
-			(cljs.pprint/pprint [:ns-data ns-data])
 			(merge {::name             "repl-acement"
 							::other-visibility true}
 						 os-data
