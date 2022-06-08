@@ -19,30 +19,31 @@
   ✓ events to transact changes (keystrokes) on any of the form parts
   ✓ --> fn to reflect back the part change to whole"
   (:require
+    [cljs.spec.alpha :as s]
     [cljs.tools.reader.edn :as rdr]
     [clojure.core.async]
-    [cljs.spec.alpha :as s]
+    [clojure.edn :as edn]
+    [clojure.walk :as walk]
     [nextjournal.clojure-mode.extensions.formatting :as format]
     [re-frame.core :refer [reg-event-db reg-event-fx reg-fx]]
+    [replacement.forms.events.common :as common]
     [replacement.forms.parser.parse :as forms-parse]
     [replacement.protocol.cljs-fn-specs :as core-fn-specs]
     [replacement.protocol.data :as data-specs]
     [replacement.protocol.patched-core-specs]
-    [replacement.ui.helpers :refer [js->cljs]]
     [replacement.structure.wiring :as wiring]
+    [replacement.ui.helpers :refer [js->cljs]]
     [zprint.core :refer [zprint-file-str]]
-    [clojure.edn :as edn]
-    [clojure.walk :as walk]
-    [replacement.forms.events.common :as common]))
+    ))
 
 (defn- unformed-arity-data
   [params+body]
   (let [params+body-value (s/unform ::core-fn-specs/params+body params+body)
-        params-value      (first params+body-value)
-        pre-post?         (map? (second params+body-value))
-        pre-post          (when pre-post? (second params+body-value))
-        body-value        (if pre-post? (drop 2 params+body-value)
-                                        (drop 1 params+body-value))]
+        params-value (first params+body-value)
+        pre-post? (map? (second params+body-value))
+        pre-post (when pre-post? (second params+body-value))
+        body-value (if pre-post? (drop 2 params+body-value)
+                                 (drop 1 params+body-value))]
     {:params-value params-value
      :body         body-value
      :pre-post-map pre-post}))
@@ -51,7 +52,7 @@
   [conformed-defn-args]
   (let [{:keys [fn-tail]} conformed-defn-args
         single-arity? (= :arity-1 (first fn-tail))
-        extra-meta    (when-not single-arity? (get-in fn-tail [:arity-n :arity-map]))]
+        extra-meta (when-not single-arity? (get-in fn-tail [:arity-n :arity-map]))]
     {:single-arity? single-arity?
      :extra-meta    extra-meta}))
 
@@ -68,7 +69,7 @@
 (defn set-params
   "Insert `new-value` for :params into the params at `index` (or 0) of the `conformed-data`"
   [conformed-data new-value index]
-  (let [index       (or index 0)
+  (let [index (or index 0)
         index-count (volatile! 0)]
     (walk/postwalk
       (fn [node]
@@ -85,7 +86,7 @@
 (defn set-pre-post
   "Insert `new-value` for :prepost into the params at `index` (or 0) of the `conformed-data`"
   [conformed-data new-value index]
-  (let [index       (or index 0)
+  (let [index (or index 0)
         index-count (volatile! 0)]
     (walk/postwalk
       (fn [node]
@@ -113,9 +114,9 @@
 (defn set-body
   "Insert `new-value` for :body into the params at `index` (or 0) of the `conformed-data`"
   [conformed-data new-value index]
-  (let [index       (or index 0)
+  (let [index (or index 0)
         index-count (volatile! 0)
-        new-body    (if (seq? (first new-value)) new-value [new-value])]
+        new-body (if (seq? (first new-value)) new-value [new-value])]
     (walk/postwalk
       (fn [node]
         (cond
@@ -152,6 +153,8 @@
 (s/def ::optional-string (s/nilable string?))
 (s/def ::optional-map (s/nilable map?))
 (s/def ::body any?)
+
+#_"The map for each of the parts of a conforming defn"
 
 (def parts {:defn.name      {:name :fn-name
                              :spec simple-symbol?
@@ -191,7 +194,7 @@
                    data name<->component)
         (select-keys (vals name<->component)))))
 
-;; Data to automate conformed form data to form specific properties
+#_"Data to automate conformed defn form data to form specific properties"
 (def fixed-parts [:defn.name :defn.docstring :defn.meta])
 (def arity-parts [:defn.params :defn.pre-post :defn.body])
 (def multi-arity-attrs [:extra-meta])
@@ -199,69 +202,70 @@
 (defn- fixed-items-update-cms!
   "Update the parts of this form that are fixed when it is conformed, including any that are nillable."
   [{:keys [defn-args] :as db} triggering-cm-key]
-  (let [properties       (conformed-data->properties defn-args (select-keys parts fixed-parts))
-        cm-keys          (->> fixed-parts
-                              (map wiring/comp-name->cm-name)
-                              (filter #(not= triggering-cm-key %)))
+  (let [properties (conformed-data->properties defn-args (select-keys parts fixed-parts))
+        cm-keys (->> fixed-parts
+                     (map wiring/comp-name->cm-name)
+                     (filter #(not= triggering-cm-key %)))
         cms-with-changes (reduce (partial common/update-cm-states db properties) [] cm-keys)]
     (common/update-cms! cms-with-changes)))
 
 (defn- arity-update-cms!
   "Update the parts of this form that are variable when it is conformed, including any that are nillable."
   [db triggering-cm-key an-arity-data]
-  (let [properties       (conformed-data->properties an-arity-data (select-keys parts arity-parts))
-        cm-keys          (->> arity-parts
-                              (map wiring/comp-name->cm-name)
-                              (filter #(not= triggering-cm-key %)))
+  (let [properties (conformed-data->properties an-arity-data (select-keys parts arity-parts))
+        cm-keys (->> arity-parts
+                     (map wiring/comp-name->cm-name)
+                     (filter #(not= triggering-cm-key %)))
         cms-with-changes (reduce (partial common/update-cm-states db properties) [] cm-keys)]
     (common/update-cms! cms-with-changes)))
 
 (defn- attrs-update-cms!
   "Update the extra attributes for multi-arity forms, if present"
   [{:keys [defn-args] :as db} triggering-cm-key]
-  (let [arity-data       (-> defn-args :fn-tail last)
-        properties       {:extra-meta (:attr-map arity-data)}
-        cm-keys          (->> multi-arity-attrs
-                              (map wiring/comp-name->cm-name)
-                              (filter #(not= triggering-cm-key %)))
+  (let [arity-data (-> defn-args :fn-tail last)
+        properties {:extra-meta (:attr-map arity-data)}
+        cm-keys (->> multi-arity-attrs
+                     (map wiring/comp-name->cm-name)
+                     (filter #(not= triggering-cm-key %)))
         cms-with-changes (reduce (partial common/update-cm-states db properties) [] cm-keys)]
     (common/update-cms! cms-with-changes)))
 
 (reg-event-db
   ::arity-update-cms
-  (fn [{:keys [current-form-data] :as db} [_ index]]
+  (fn arity-update-cms [{:keys [current-form-data] :as db} [_ index]]
     (let [arity-data (get-in current-form-data [:form :arity-data])]
       (arity-update-cms! db :none (nth arity-data index))
       (assoc db :arity-index index))))
 
 (reg-event-db
   ::set-arity-index
-  (fn [db [_ index]]
+  (fn set-arity-index [db [_ index]]
     (assoc db :arity-index index)))
 
 (defn- text->spec-data
-  [text]
-  (let [data          (rdr/read-string text)
-        conformed     (s/conform ::data-specs/defn-form data)
-        explain-data  (and (= s/invalid? conformed) (s/explain-data ::data-specs/defn-form data))
-        unformed      (or (= s/invalid? conformed) (s/unform ::data-specs/defn-form conformed))
+  [text form-id]
+  (let [data (rdr/read-string text)
+        conformed (s/conform ::data-specs/defn-form data)
+        explain-data (and (= s/invalid? conformed) (s/explain-data ::data-specs/defn-form data))
+        unformed (or (= s/invalid? conformed) (s/unform ::data-specs/defn-form conformed))
         fn-properties {:defn.text         (-> unformed pr-str common/fix-width-format)
                        :defn.conformed    conformed
+                       :defn.id           form-id
                        :defn.explain-data explain-data
                        :defn.unformed     unformed}
-        fn-data       (split-defn-args (:defn-args conformed))]
+        fn-data (split-defn-args (:defn-args conformed))]
     (merge fn-properties fn-data)))
 
 (defn conformed->spec-data
   [conformed]
-  (let [unformed      (when-not (s/invalid? conformed)
-                        (s/unform ::data-specs/defn-form conformed))
+  (let [unformed (when-not (s/invalid? conformed)
+                   (s/unform ::data-specs/defn-form conformed))
         fn-properties {:defn.text         (-> unformed pr-str common/fix-width-format)
                        :defn.conformed    conformed
                        :defn.explain-data (when (s/invalid? conformed)
                                             (s/explain-data ::data-specs/defn-form conformed))
                        :defn.unformed     unformed}
-        fn-data       (split-defn-args (:defn-args conformed))]
+        fn-data (split-defn-args (:defn-args conformed))]
     (merge fn-properties fn-data)))
 
 (defn conformed-form->spec-data
@@ -274,39 +278,39 @@
      :unformed     unformed}))
 
 (defn update-from-parts
-  "Updates the value of `property-name` to `new-value` in the `conformed-data` map. If `new-value` is
-  not conforming, the update is nil and the spec explain-data is provided"
+  "Updates the value of `property-name` to `new-value` in the `conformed-data` map.
+  If `new-value` is not conforming, the update is nil and the spec explain-data is provided"
   [conformed-data property-name new-value arity-index]
   (let [{:keys [spec path arity?]} (get parts property-name)
-        input          (forms-parse/text->edn-forms new-value)
+        input (forms-parse/text->edn-forms new-value)
         conformed-part (s/conform spec input)
-        update         (when-not (s/invalid? conformed-part)
-                         (if arity?
-                           (path conformed-data conformed-part arity-index)
-                           (path conformed-data conformed-part)))
-        explain        (when (s/invalid? conformed-part)
-                         (s/explain-data spec input))]
+        update (when-not (s/invalid? conformed-part)
+                 (if arity?
+                   (path conformed-data conformed-part arity-index)
+                   (path conformed-data conformed-part)))
+        explain (when (s/invalid? conformed-part)
+                  (s/explain-data spec input))]
     {:value   new-value
      :input   input
      :update  update
      :explain explain}))
 
 (reg-event-db
+  #_"Update the transacting code-mirror and iff conformed, the whole too"
   ::part-edit
-  (fn [db [_ part-cm-name tx]]
-    ;; First update the transacting code-mirror
+  (fn part-edit [db [_ part-cm-name tx]]
     (-> (get-in db [part-cm-name :cm]) (common/update-cm! tx))
     (if-not (js->cljs (.-docChanged tx))
       db
       (let [{:keys [arity-index visible-form-id]} db
             {:keys [ref-conformed]} (get db visible-form-id)
             part-name (wiring/cm-name->comp-name part-cm-name)
-            text      (common/extract-tx-text tx)
-            updates   (update-from-parts ref-conformed part-name text arity-index)]
+            text (common/extract-tx-text tx)
+            updates (update-from-parts ref-conformed part-name text arity-index)]
         (if-not (:update updates)
           db
           (let [db' (merge db (conformed->spec-data (:update updates)))
-                cm  (-> :db :defn.form.cm :cm)]
+                cm (-> :db :defn.form.cm :cm)]
             (->> db' :defn.text (common/format-tx cm) (common/update-cm! cm))
             db'))))))
 
@@ -318,35 +322,32 @@
 
 (reg-event-db
   ::set-form
-  (fn [db [_ var-id]]
+  (fn set-form [db [_ var-id]]
+    (println ::set-form var-id)
     (when-let [cm (get-in db [:defn.form.cm :cm])]
       (let [{:keys [ref-conformed ref-name]} (db var-id)
             visibility {:visible-form-id var-id}
-            db'        (merge db visibility (conformed->spec-data ref-conformed))]
+            db' (merge db visibility (conformed->spec-data ref-conformed))]
         (some->> db' :defn.text (common/format-tx cm) (common/update-cm! cm))
         (tap> [::set-form :var-data ref-name])
         (when (:defn.conformed db') (parts-update! db' :defn.form.cm))
         db'))))
 
-;; TODO: Associate the change with the current form and persist it
 (reg-event-db
+  #_"Update the transacting code-mirror and iff conformed, the parts too"
   ::form-tx
-  (fn [db [_ cm-name tx]]
-    ;; First update the transacting code-mirror
-    (-> (get-in db [cm-name :cm]) (common/update-cm! tx))
+  (fn form-tx [{:keys [visible-form-id] :as db} [_ cm-name tx]]
+    (-> (get-in db [cm-name :cm])
+        (common/update-cm! tx))
     (let [text (common/extract-tx-text tx)
-          db'  (merge db (text->spec-data text))]
-      (when (:defn.conformed db') (parts-update! db' cm-name))
+          text-updates (text->spec-data text visible-form-id)
+          db' (merge db text-updates)]
+      (cljs.pprint/pprint [::form-tx :updates text-updates])
+      (when (:defn.conformed db')
+        (common/add-changes-to-history (:defn.conformed db') (db' visible-form-id))
+        (parts-update! db' cm-name))
       db')))
 
-;; TODO - persist editing changes
-; [x] event to persist changes at user behest
-; [x] event to persist changes when the form under inspection is changed
-
-;; TODO - set warnings if not conformed
-; [x] event to set that warnings exist
-; [x] use a 'humane' lib to expose the spec warnings
-; [x] persist warnings with changes
-
-
-
+;; TODO next ...
+;; - persist the most recent version of the var in the DB
+;; - start minimal history UI with the slider

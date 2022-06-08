@@ -3,7 +3,7 @@
 		[clojure.core.async :as async]
 		[clojure.spec.alpha :as spec]
 		[clojure.string :as str]
-		[clojure.test :refer :all]
+		[clojure.test :refer [deftest is testing]]
 		[replacement.server.async-prepl :as prepl]
 		[replacement.server.await :refer [async-test-prepl gather-sync]]
 		[replacement.specs.user :as user-specs])
