@@ -2,6 +2,7 @@
   (:require [clojure.spec.alpha :as s]
             [clojure.core.specs.alpha :as core-specs]
             [replacement.protocol.events :as events-specs]
+            [replacement.protocol.text-parsing :as text-parsing]
             [replacement.server.async-prepl :as ap]))
 
 (set! *warn-on-reflection* true)
@@ -52,10 +53,10 @@
 (defn- arity-data
   [params+body]
   (let [params+body-value (s/unform ::core-specs/params+body params+body)
-        param-list        (first params+body-value)
-        prepost?          (map? (second params+body-value))
-        prepost           (when prepost? (second params+body-value))
-        body              (last params+body-value)]
+        param-list (first params+body-value)
+        prepost? (map? (second params+body-value))
+        prepost (when prepost? (second params+body-value))
+        body (last params+body-value)]
     {:param-list param-list
      :body       body
      :prepost    prepost}))
@@ -64,9 +65,9 @@
   [conformed-defn-args]
   (let [{:keys [fn-tail]} conformed-defn-args
         single-arity? (= :arity-1 (first fn-tail))
-        arity-data    (if single-arity?
-                        (arity-data (-> fn-tail last))
-                        (map arity-data (-> fn-tail last :bodies)))]
+        arity-data (if single-arity?
+                     (arity-data (-> fn-tail last))
+                     (map arity-data (-> fn-tail last :bodies)))]
     (merge conformed-defn-args
            {:single-arity? single-arity?
             :arity-data    arity-data})))
@@ -84,32 +85,30 @@
 
 (defn enrich-def
   [ns-name [type {:keys [var-name] :as data}]]
-  (let [var-name var-name]
-    (enrich-var ns-name var-name [type data])))
+  (enrich-var ns-name var-name [type data]))
 
 (defn enrich-defn
   [ns-name [type {:keys [defn-args] :as data}]]
   (let [var-name (:fn-name defn-args)]
     (enrich-var ns-name var-name [type data])))
 
-(defn enrich
+(defn enrich                                                ;; use defmulti
   [{:keys [ns-args]} conformed-forms]
   (let [ns-name (:ns-name ns-args)]
-    (mapv
-      (fn [form]
-        (cond
-          (= :def (first form)) (enrich-def ns-name form)
-          (= :defn (first form)) (enrich-defn ns-name form)
-          :else form))
-      conformed-forms)))
+    (mapv (fn [form]
+            (condp = (first form)
+              :def (enrich-def ns-name form)
+              :defn (enrich-defn ns-name form)
+              form))
+          conformed-forms)))
 
 (comment
 
-  (let [forms (->> "repl-server/replacement/server/async_prepl.clj"
+  (let [forms (->> "examples/bare-bones-project/io/parennial/user.clj"
                    slurp
                    ap/message->forms
-                   (map #(s/conform ::form %)))]
-    (enrich (-> forms first last)
+                   text-parsing/whole-ns->spec-form-data)]
+    #_(enrich (-> forms first last)
             (rest forms)))
 
   )

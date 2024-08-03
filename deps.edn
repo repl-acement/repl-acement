@@ -1,8 +1,8 @@
 {:deps
- {carocad/parcera             {:mvn/version "0.11.6"}
+ {borkdude/edamame            {:mvn/version "1.3.22"}
   com.taoensso/sente          {:mvn/version "1.16.2"}
   com.taoensso/timbre         {:mvn/version "5.1.2"}
-  org.clojure/clojure         {:mvn/version "1.11.1"}
+  org.clojure/clojure         {:mvn/version "1.12.0-alpha4"}
   org.clojure/core.async      {:mvn/version "1.5.648"}
   org.clojure/tools.logging   {:mvn/version "1.1.0"}
   org.clojure/tools.namespace {:mvn/version "1.1.0"}

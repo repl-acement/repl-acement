@@ -1,0 +1,24 @@
+
+;; << - - - - - - - - - - - - - (. ) (. )
+
+;; Should not be edited by hand.
+
+;; Tool maintained.
+
+;; Can be re-constructed
+
+{
+ :name            "REPLacement starter project"
+
+ ;;:reality-roll-up ... a single, recursive hash of the entire project
+
+ :reality-roll-up "sum of ns digests"
+
+ ;; :nses ... a list of the project namespaces and their recursive hashes
+
+ :nses            {:name->id {ns-name-1 {:id uuid :digest "123"}}}
+
+ ;; a list of the project namespace ids and a pointer into the :nses map
+
+ :id->name        {uuid {:name the-ns-name :digest "123"}}
+ }

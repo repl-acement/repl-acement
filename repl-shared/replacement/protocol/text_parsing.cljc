@@ -31,7 +31,7 @@
   [s]
   (let [EOF :EOF
         reader (push-back-reader s)]
-    (reduce (fn [forms [form _]]
+    (reduce (fn [forms [form _trimmed-input-string]]
               (if (= form EOF)
                 (reduced forms)
                 (conj forms form)))
@@ -43,9 +43,9 @@
   (let [pre-check (s/valid? ::spec-data/form form)
         conformed (and pre-check (s/conform ::spec-data/form form))]
     (cond-> {}
-            pre-check (assoc :form form
-                             :conformed conformed
-                             :unformed (s/unform ::spec-data/form conformed))
+            (true? pre-check) (assoc :form form
+                                     :conformed conformed
+                                     :unformed (s/unform ::spec-data/form conformed))
             (not pre-check) (assoc :explain (s/explain-data ::spec-data/form form)))))
 
 (defn whole-ns->spec-form-data

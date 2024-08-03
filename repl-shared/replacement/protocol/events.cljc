@@ -141,18 +141,16 @@
 (defn add-ns
   "Add a new NS to the DB or return the DB if it already exists"
   [{:keys [ns-name->ns-id ns-id->ns-name] :as db} an-ns]
-  (let [the-ns-name (::data/var-name an-ns)]
+  (let [the-ns-name (get-in an-ns [:conformed 1 :ns-args :ns-name])]
     (if (db (get ns-name->ns-id the-ns-name))
       ;; Nothing to index. Write another function to update the version.
       db
       ;; Produce the index.
-      (let [id (random-uuid)
-            indexed-ns (assoc an-ns :id id)
-            ns-name->ns-id' (assoc ns-name->ns-id the-ns-name id)
-            ns-id->ns-name' (assoc ns-id->ns-name id the-ns-name)]
-        [id (assoc db id indexed-ns
-                      :ns-name->ns-id ns-name->ns-id'
-                      :ns-id->ns-name ns-id->ns-name')]))))
+      (let [id (random-uuid)]
+        ;; The name -> id and id -> name mappings should be updates / merges
+        [id (assoc db id (assoc an-ns :id id)
+                      :ns-name->ns-id (assoc ns-name->ns-id the-ns-name id)
+                      :ns-id->ns-name (assoc ns-id->ns-name id the-ns-name))]))))
 
 (defn update-ns-data2
   "Add"
@@ -278,7 +276,7 @@
 
     ;; replace vvv with ^^^
     ;; check first is-ns?
-    (let [result (reduce (fn [[_ns-index index kvs] form]
+#_    (let [result (reduce (fn [[_ns-index index kvs] form]
                            (let [uuid (random-uuid)
                                  idx (vec (conj index uuid))
                                  ns-map (hash-map (first idx) idx)

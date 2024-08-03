@@ -1,0 +1,5 @@
+{
+ :deps {commons-codec/commons-codec {:mvn/version "1.15"}}
+
+ }
+
